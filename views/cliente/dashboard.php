@@ -109,8 +109,12 @@ require_auth();
                 try {
                     const payload = { delivery_address, payment_method, cart };
                     const d = await (window.SABORES360 && SABORES360.API ? SABORES360.API.post('client/orders', payload) : (async () => { const res = await fetch(base + 'client/orders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); return res.json(); })());
-                    if (d && d.success) { alert('Pedido creado #' + d.order_id); cart.length = 0; renderCart(); }
-                    else alert(d.message || 'No se pudo crear pedido');
+                    if (d && d.success) {
+                        alert('Pedido creado #' + (d.order_id || d.data && d.data.order_id || ''));
+                        cart.length = 0; renderCart();
+                        // redirect to My Orders so user sees the new order
+                        window.location.href = '/Sabores360/views/cliente/my_orders.php?_t=' + Date.now();
+                    } else alert(d.message || 'No se pudo crear pedido');
                 } catch (err) { alert('Error al crear pedido'); }
             });
 

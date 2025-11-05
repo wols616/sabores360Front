@@ -48,8 +48,7 @@ require_role('admin');
                 if (fd.get('date_to')) params.append('date_to', fd.get('date_to'));
                 const base = (window.SABORES360 && SABORES360.API_BASE) ? SABORES360.API_BASE : 'http://localhost:8080/api/';
                 try {
-                    const res = await fetch(base + 'admin/reports?' + params.toString(), { credentials: 'include' });
-                    const d = await res.json();
+                    const d = await (window.SABORES360 && SABORES360.API ? SABORES360.API.get('admin/reports?' + params.toString()) : (async () => { const res = await fetch(base + 'admin/reports?' + params.toString(), { credentials: 'include' }); return res.json(); })());
                     if (d && d.success) {
                         document.getElementById('reports-result').textContent = JSON.stringify(d.data || d, null, 2);
                     } else document.getElementById('reports-result').textContent = 'No hay resultados.';

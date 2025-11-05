@@ -36,19 +36,31 @@ require_role('admin');
         (async function () {
             const base = (window.SABORES360 && SABORES360.API_BASE) ? SABORES360.API_BASE : 'http://localhost:8080/api/';
             try {
-                const res = await fetch(base + 'admin/orders', { credentials: 'include' });
-                const d = await res.json();
-                if (d && d.success && Array.isArray(d.orders)) {
-                    const container = document.getElementById('orders-list');
+                const d = await (window.SABORES360 && SABORES360.API ? SABORES360.API.get('admin/orders') : (async () => { const res = await fetch(base + 'admin/orders', { credentials: 'include' }); return res.json(); })());
+                const container = document.getElementById('orders-list');
+                // normalize possible shapes: d.orders | d.data | d.data.orders | d.items
+                let orders = [];
+                if (d && d.success) {
+                    if (Array.isArray(d.orders)) orders = d.orders;
+                    else if (Array.isArray(d.data)) orders = d.data;
+                    else if (d.data && Array.isArray(d.data.orders)) orders = d.data.orders;
+                    else if (d.data && Array.isArray(d.data.items)) orders = d.data.items;
+                    else if (Array.isArray(d.items)) orders = d.items;
+                }
+                if (orders && orders.length) {
                     container.innerHTML = '';
-                    d.orders.forEach(o => {
+                    orders.forEach(o => {
+                        const id = o.id || o.orderId || o.order_id || '';
+                        const status = o.status || o.state || '';
+                        const total = o.total_amount || o.totalAmount || o.total || '';
+                        const created = o.created_at || o.createdAt || o.date || '';
                         const el = document.createElement('div');
                         el.className = 'order-item';
-                        el.innerHTML = `<strong>#${o.id}</strong> - ${o.status} - ${o.total_amount} - ${o.created_at}`;
+                        el.innerHTML = `<strong>#${id}</strong> - ${status} - ${total} - ${created}`;
                         container.appendChild(el);
                     });
                 } else {
-                    document.getElementById('orders-list').textContent = 'No hay pedidos.';
+                    container.textContent = 'No hay pedidos.';
                 }
             } catch (err) { document.getElementById('orders-list').textContent = 'Error al cargar pedidos.'; }
         })();

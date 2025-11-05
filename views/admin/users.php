@@ -36,14 +36,24 @@ require_role('admin');
         (async function () {
             const base = (window.SABORES360 && SABORES360.API_BASE) ? SABORES360.API_BASE : 'http://localhost:8080/api/';
             try {
-                const res = await fetch(base + 'admin/users', { credentials: 'include' });
-                const d = await res.json();
+                const d = await (window.SABORES360 && SABORES360.API ? SABORES360.API.get('admin/users') : (async () => { const res = await fetch(base + 'admin/users', { credentials: 'include' }); return res.json(); })());
                 const container = document.getElementById('users-list');
-                if (d && d.success && Array.isArray(d.users)) {
+                // normalize users array shapes
+                let users = [];
+                if (d && d.success) {
+                    if (Array.isArray(d.users)) users = d.users;
+                    else if (Array.isArray(d.data)) users = d.data;
+                    else if (d.data && Array.isArray(d.data.users)) users = d.data.users;
+                    else if (Array.isArray(d.items)) users = d.items;
+                }
+                if (users && users.length) {
                     container.innerHTML = '';
-                    d.users.forEach(u => {
+                    users.forEach(u => {
+                        const name = u.name || u.fullName || u.username || '';
+                        const email = u.email || '';
+                        const role = u.role || u.role_name || (u.role && u.role.name) || '';
                         const el = document.createElement('div');
-                        el.innerHTML = `<strong>${u.name}</strong> - ${u.email} - ${u.role || u.role_name || u.role_id}`;
+                        el.innerHTML = `<strong>${name}</strong> - ${email} - ${role}`;
                         container.appendChild(el);
                     });
                 } else {
