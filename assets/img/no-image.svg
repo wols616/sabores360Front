@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="140" viewBox="0 0 200 140">
+  <rect width="200" height="140" fill="#f3f4f6"/>
+  <g fill="#cbd5e1">
+    <rect x="20" y="30" width="160" height="80" rx="6"/>
+  </g>
+  <g fill="#94a3b8">
+    <circle cx="60" cy="70" r="18"/>
+    <path d="M90 50 L150 110" stroke="#94a3b8" stroke-width="6" stroke-linecap="round" fill="none"/>
+  </g>
+  <text x="100" y="125" font-size="12" text-anchor="middle" fill="#64748b">Sin imagen</text>
+</svg>

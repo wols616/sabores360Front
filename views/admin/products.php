@@ -72,6 +72,16 @@ require_role('admin');
             const container = document.getElementById('product-list');
             let products = [];
 
+            function normalizeImageUrl(u) {
+                if (!u) return null;
+                if (u === 'undefined' || u === 'null') return null;
+                try {
+                    if (u.startsWith('http://') || u.startsWith('https://') || u.startsWith('//')) return u;
+                } catch (e) { }
+                if (u.startsWith('/')) return window.location.origin + u;
+                return window.location.origin + '/' + u;
+            }
+
             function renderProducts() {
                 if (!products || !products.length) { container.textContent = 'No hay productos.'; return; }
                 container.innerHTML = '';
@@ -79,9 +89,13 @@ require_role('admin');
                     const name = p.name || p.title || '';
                     const price = p.price || p.cost || '';
                     const available = (typeof p.is_available !== 'undefined') ? p.is_available : (typeof p.stock !== 'undefined' ? (p.stock > 0) : true);
+                    const rawImg = p.imageUrl || p.image_url || p.image;
+                    const imgSrc = normalizeImageUrl(rawImg);
+                    const placeholder = '/Sabores360/assets/img/no-image.svg';
+                    const imgHtml = `<img src="${imgSrc ? imgSrc : placeholder}" onerror="this.onerror=null;this.src='${placeholder}';" style="max-width:120px;display:block;margin-bottom:6px;">`;
                     const el = document.createElement('div');
                     el.className = 'product-item';
-                    el.innerHTML = `<strong>${name}</strong> - ${price} - ${available ? 'Disponible' : 'No disponible'}<br>
+                    el.innerHTML = `${imgHtml}<strong>${name}</strong> - ${price} - ${available ? 'Disponible' : 'No disponible'}<br>
                         <button class="edit" data-id="${p.id}">Editar</button>
                         <button class="delete" data-id="${p.id}">Eliminar</button>`;
                     container.appendChild(el);
