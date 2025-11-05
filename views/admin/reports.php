@@ -15,13 +15,8 @@ require_role('admin');
 <body>
     <header>
         <h1>Reportes</h1>
-        <nav>
-            <a href="/Sabores360/views/admin/dashboard.php">Dashboard</a> |
-            <a href="/Sabores360/views/admin/orders.php">Pedidos</a> |
-            <a href="/Sabores360/views/admin/products.php">Productos</a> |
-            <a href="/Sabores360/views/admin/users.php">Usuarios</a> |
-            <a href="/Sabores360/logout.php">Cerrar sesión</a>
-        </nav>
+        <?php $active = 'reports';
+        require __DIR__ . '/_admin_nav.php'; ?>
     </header>
 
     <main>
