@@ -8,5 +8,6 @@
     <a href="/Sabores360/views/admin/products.php" <?= (isset($active) && $active === 'products') ? ' style="font-weight:600"' : '' ?>>Productos</a> |
     <a href="/Sabores360/views/admin/categories.php" <?= (isset($active) && $active === 'categories') ? ' style="font-weight:600"' : '' ?>>Categorías</a> |
     <a href="/Sabores360/views/admin/users.php" <?= (isset($active) && $active === 'users') ? ' style="font-weight:600"' : '' ?>>Usuarios</a> |
+    <a href="/Sabores360/views/admin/profile.php" <?= (isset($active) && $active === 'profile') ? ' style="font-weight:600"' : '' ?>>Perfil</a> |
     <a href="/Sabores360/logout.php">Cerrar sesión</a>
 </nav>

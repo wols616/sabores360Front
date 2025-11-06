@@ -19,6 +19,7 @@ require_role('vendedor');
             <a href="/Sabores360/views/vendedor/dashboard.php">Dashboard</a> |
             <a href="/Sabores360/views/vendedor/orders.php">Pedidos</a> |
             <a href="/Sabores360/views/vendedor/products.php">Productos</a> |
+            <a href="/Sabores360/views/vendedor/profile.php">Perfil</a> |
             <a href="/Sabores360/logout.php">Cerrar sesión</a>
         </nav>
     </header>
