@@ -132,6 +132,75 @@ require_role('admin');
             <p class="mb-0 opacity-75">Administra el catálogo de productos</p>
         </div>
 
+        <!-- Search and Filters -->
+        <div class="card mb-4"
+            style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(255, 107, 53, 0.1);">
+            <div class="card-header bg-transparent">
+                <h5 class="mb-0 text-orange">
+                    <i class="bi bi-funnel"></i> Búsqueda y Filtros
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <!-- Search Bar -->
+                    <div class="col-md-4">
+                        <label class="form-label">
+                            <i class="bi bi-search"></i> Buscar productos
+                        </label>
+                        <input type="text" class="form-control" id="search-input"
+                            placeholder="Buscar por nombre, descripción...">
+                    </div>
+
+                    <!-- Category Filter -->
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="bi bi-tags"></i> Categoría
+                        </label>
+                        <select class="form-select" id="category-filter">
+                            <option value="">Todas las categorías</option>
+                        </select>
+                    </div>
+
+                    <!-- Availability Filter -->
+                    <div class="col-md-2">
+                        <label class="form-label">
+                            <i class="bi bi-check-circle"></i> Disponibilidad
+                        </label>
+                        <select class="form-select" id="availability-filter">
+                            <option value="">Todos</option>
+                            <option value="available">Disponible</option>
+                            <option value="unavailable">No disponible</option>
+                        </select>
+                    </div>
+
+                    <!-- Stock Filter -->
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="bi bi-boxes"></i> Stock
+                        </label>
+                        <select class="form-select" id="stock-filter">
+                            <option value="">Todos los niveles</option>
+                            <option value="low">Stock bajo (≤5)</option>
+                            <option value="medium">Stock medio (6-20)</option>
+                            <option value="high">Stock alto (>20)</option>
+                            <option value="out">Sin stock (0)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row mt-3">
+                    <div class="col-12 d-flex gap-2">
+                        <button class="btn btn-outline-orange btn-sm" id="clear-filters">
+                            <i class="bi bi-x-circle"></i> Limpiar Filtros
+                        </button>
+                        <div class="ms-auto">
+                            <span class="badge bg-secondary" id="results-count">0 resultados</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="row mb-4">
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center">
@@ -161,7 +230,19 @@ require_role('admin');
         (async function () {
             const base = (window.SABORES360 && SABORES360.API_BASE) ? SABORES360.API_BASE : 'http://localhost:8080/api/';
             const container = document.getElementById('product-list');
-            let products = [];
+
+            // Global variables for filtering
+            let allProducts = [];
+            let allCategories = [];
+            let filteredProducts = [];
+
+            // Get filter elements
+            const searchInput = document.getElementById('search-input');
+            const categoryFilter = document.getElementById('category-filter');
+            const availabilityFilter = document.getElementById('availability-filter');
+            const stockFilter = document.getElementById('stock-filter');
+            const clearFiltersBtn = document.getElementById('clear-filters');
+            const resultsCount = document.getElementById('results-count');
 
             function normalizeImageUrl(u) {
                 if (!u) return null;
@@ -173,20 +254,101 @@ require_role('admin');
                 return window.location.origin + '/' + u;
             }
 
+            function populateCategoryFilter() {
+                const categorySelect = document.getElementById('category-filter');
+                const currentValue = categorySelect.value;
+
+                // Clear existing options except default
+                categorySelect.innerHTML = '<option value="">Todas las categorías</option>';
+
+                // Add category options
+                allCategories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.id;
+                    option.textContent = category.name || `Categoría ${category.id}`;
+                    categorySelect.appendChild(option);
+                });
+
+                // Restore previous selection if still valid
+                if (currentValue) {
+                    categorySelect.value = currentValue;
+                }
+            }
+
+            function applyFilters() {
+                const searchTerm = searchInput.value.toLowerCase().trim();
+                const categoryValue = categoryFilter.value;
+                const availabilityValue = availabilityFilter.value;
+                const stockValue = stockFilter.value;
+
+                filteredProducts = allProducts.filter(product => {
+                    // Search filter (name, description)
+                    if (searchTerm) {
+                        const name = String(product.name || product.title || '').toLowerCase();
+                        const description = String(product.description || product.desc || '').toLowerCase();
+                        const searchMatch = name.includes(searchTerm) || description.includes(searchTerm);
+                        if (!searchMatch) return false;
+                    }
+
+                    // Category filter
+                    if (categoryValue) {
+                        const productCategoryId = String(product.categoryId || product.category_id || product.category?.id || '');
+                        if (productCategoryId !== categoryValue) return false;
+                    }
+
+                    // Availability filter
+                    if (availabilityValue) {
+                        const available = (typeof product.is_available !== 'undefined') ?
+                            product.is_available :
+                            (typeof product.stock !== 'undefined' ? (product.stock > 0) : true);
+
+                        if (availabilityValue === 'available' && !available) return false;
+                        if (availabilityValue === 'unavailable' && available) return false;
+                    }
+
+                    // Stock filter
+                    if (stockValue) {
+                        const stock = product.stock || 0;
+                        switch (stockValue) {
+                            case 'out':
+                                if (stock !== 0) return false;
+                                break;
+                            case 'low':
+                                if (stock > 5 || stock === 0) return false;
+                                break;
+                            case 'medium':
+                                if (stock < 6 || stock > 20) return false;
+                                break;
+                            case 'high':
+                                if (stock <= 20) return false;
+                                break;
+                        }
+                    }
+
+                    return true;
+                });
+
+                renderProducts();
+            }
+
             function renderProducts() {
-                if (!products || !products.length) {
+                // Update results count
+                resultsCount.textContent = `${filteredProducts.length} resultado${filteredProducts.length !== 1 ? 's' : ''}`;
+
+                if (!filteredProducts || !filteredProducts.length) {
                     container.innerHTML = `
                         <div class="col-12 text-center py-5">
                             <i class="bi bi-box display-1 text-muted opacity-50"></i>
                             <h4 class="text-muted mt-3">No hay productos</h4>
-                            <p class="text-muted">Comienza agregando tu primer producto</p>
+                            <p class="text-muted">${allProducts.length > 0 ? 'No se encontraron productos con los filtros aplicados' : 'Comienza agregando tu primer producto'}</p>
+                            ${allProducts.length > 0 ? '<button class="btn btn-outline-orange btn-sm" onclick="clearAllFilters()"><i class="bi bi-x-circle"></i> Limpiar Filtros</button>' : ''}
                         </div>
                     `;
                     return;
                 }
 
                 container.innerHTML = '';
-                products.forEach(p => {
+                filteredProducts.forEach(p => {
                     const name = p.name || p.title || '';
                     const price = p.price || p.cost || '';
                     const description = p.description || p.desc || '';
@@ -256,9 +418,13 @@ require_role('admin');
                         else if (d.data && Array.isArray(d.data.items)) list = d.data.items;
                         else if (Array.isArray(d.items)) list = d.items;
                     }
-                    products = list;
+                    allProducts = list;
+                    filteredProducts = [...allProducts];
                     renderProducts();
-                } catch (err) { container.textContent = 'Error al cargar productos.'; }
+                } catch (err) {
+                    container.textContent = 'Error al cargar productos.';
+                    console.error('Error loading products:', err);
+                }
             }
 
             // PRODUCT MODAL (Bootstrap styled)
@@ -350,8 +516,7 @@ require_role('admin');
             const form = document.getElementById('product-form');
             const modalTitle = document.getElementById('modal-title');
 
-            // categories cache
-            let categories = [];
+            // Load categories for both filter and modal
             async function loadCategories() {
                 try {
                     const d = await (window.SABORES360 && SABORES360.API ? SABORES360.API.get('admin/categories') : (async () => { const res = await fetch(base + 'admin/categories', { credentials: 'include' }); const t = await res.text(); try { return JSON.parse(t); } catch (e) { return { success: res.ok, raw: t } } })());
@@ -361,20 +526,25 @@ require_role('admin');
                         else if (d.data && Array.isArray(d.data.categories)) list = d.data.categories;
                         else if (Array.isArray(d.data)) list = d.data;
                     }
-                    categories = list;
+                    allCategories = list;
+
+                    // Update filter dropdown
+                    populateCategoryFilter();
+
+                    // populate modal select if form exists
+                    const sel = form && form.querySelector('[name="categoryId"]');
+                    if (sel) {
+                        if (!allCategories || !allCategories.length) {
+                            sel.innerHTML = '<option value="">(sin categorías)</option>';
+                        } else {
+                            const opts = ['<option value="">--Seleccionar categoría--</option>'].concat(allCategories.map(c => `<option value="${c.id}">${c.name}</option>`));
+                            sel.innerHTML = opts.join('');
+                        }
+                    }
                 } catch (e) {
                     console.error('Failed to load categories', e);
-                    categories = [];
+                    allCategories = [];
                 }
-                // populate select
-                const sel = form && form.querySelector('[name="categoryId"]');
-                if (!sel) return;
-                if (!categories || !categories.length) {
-                    sel.innerHTML = '<option value="">(sin categorías)</option>';
-                    return;
-                }
-                const opts = ['<option value="">--Seleccionar categoría--</option>'].concat(categories.map(c => `<option value="${c.id}">${c.name}</option>`));
-                sel.innerHTML = opts.join('');
             }
 
             async function openModal(prod) {
@@ -494,7 +664,7 @@ require_role('admin');
                 const btn = ev.target;
                 if (btn.matches('.edit')) {
                     const id = btn.getAttribute('data-id');
-                    const prod = products.find(p => String(p.id) === String(id));
+                    const prod = allProducts.find(p => String(p.id) === String(id));
                     openModal(prod);
                 } else if (btn.matches('.delete')) {
                     const id = btn.getAttribute('data-id');
@@ -507,6 +677,30 @@ require_role('admin');
             });
 
             document.getElementById('new-product').addEventListener('click', () => openModal(null));
+
+            // Event listeners for filters
+            searchInput.addEventListener('input', applyFilters);
+            categoryFilter.addEventListener('change', applyFilters);
+            availabilityFilter.addEventListener('change', applyFilters);
+            stockFilter.addEventListener('change', applyFilters);
+
+            // Clear filters functionality
+            clearFiltersBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                categoryFilter.value = '';
+                availabilityFilter.value = '';
+                stockFilter.value = '';
+                applyFilters();
+            });
+
+            // Global function for clear filters button in no results state
+            window.clearAllFilters = () => {
+                searchInput.value = '';
+                categoryFilter.value = '';
+                availabilityFilter.value = '';
+                stockFilter.value = '';
+                applyFilters();
+            };
 
             // initial load
             await loadCategories();

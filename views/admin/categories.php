@@ -111,6 +111,30 @@ require_role('admin');
             <p class="mb-0 opacity-75">Administra las categorías de productos</p>
         </div>
 
+        <!-- Search Bar -->
+        <div class="card mb-4"
+            style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(255, 107, 53, 0.1);">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-6">
+                        <label class="form-label">
+                            <i class="bi bi-search text-orange"></i> Buscar categorías
+                        </label>
+                        <input type="text" class="form-control" id="search-input"
+                            placeholder="Buscar por nombre o descripción...">
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-outline-orange btn-sm" id="clear-search">
+                            <i class="bi bi-x-circle"></i> Limpiar
+                        </button>
+                    </div>
+                    <div class="col-md-3 text-end">
+                        <span class="badge bg-secondary" id="results-count">0 resultados</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="card table-card">
             <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
@@ -161,21 +185,51 @@ require_role('admin');
         (async function () {
             const base = (window.SABORES360 && SABORES360.API_BASE) ? SABORES360.API_BASE : 'http://localhost:8080/api/';
             const body = document.getElementById('cat-body');
-            let categories = [];
+
+            // Global variables for filtering
+            let allCategories = [];
+            let filteredCategories = [];
+
+            // Get filter elements
+            const searchInput = document.getElementById('search-input');
+            const clearSearchBtn = document.getElementById('clear-search');
+            const resultsCount = document.getElementById('results-count');
+
+            function applyFilter() {
+                const searchTerm = searchInput.value.toLowerCase().trim();
+
+                filteredCategories = allCategories.filter(category => {
+                    if (!searchTerm) return true;
+
+                    const name = String(category.name || '').toLowerCase();
+                    const description = String(category.description || '').toLowerCase();
+                    const id = String(category.id || '').toLowerCase();
+
+                    return name.includes(searchTerm) ||
+                        description.includes(searchTerm) ||
+                        id.includes(searchTerm);
+                });
+
+                render();
+            }
 
             function render() {
-                if (!categories || !categories.length) {
+                // Update results count
+                resultsCount.textContent = `${filteredCategories.length} resultado${filteredCategories.length !== 1 ? 's' : ''}`;
+
+                if (!filteredCategories || !filteredCategories.length) {
                     body.innerHTML = `
                         <tr>
                             <td colspan="4" class="text-center py-4">
                                 <i class="bi bi-inbox display-4 text-muted"></i>
-                                <p class="mt-2 text-muted">No hay categorías registradas</p>
+                                <p class="mt-2 text-muted">${allCategories.length > 0 ? 'No se encontraron categorías con el término de búsqueda' : 'No hay categorías registradas'}</p>
+                                ${allCategories.length > 0 ? '<button class="btn btn-outline-orange btn-sm mt-2" onclick="clearAllFilters()"><i class="bi bi-x-circle"></i> Limpiar Búsqueda</button>' : ''}
                             </td>
                         </tr>
                     `;
                     return;
                 }
-                body.innerHTML = categories.map(c => `
+                body.innerHTML = filteredCategories.map(c => `
                     <tr>
                         <td>
                             <span class="badge bg-secondary">#${c.id}</span>
@@ -207,8 +261,13 @@ require_role('admin');
                         else if (d.data && Array.isArray(d.data.categories)) list = d.data.categories;
                         else if (Array.isArray(d.data)) list = d.data;
                     }
-                    categories = list;
-                } catch (e) { categories = []; console.error('load categories error', e); }
+                    allCategories = list;
+                    filteredCategories = [...allCategories];
+                } catch (e) {
+                    allCategories = [];
+                    filteredCategories = [];
+                    console.error('load categories error', e);
+                }
                 render();
             }
 
@@ -347,11 +406,11 @@ require_role('admin');
 
                 if (btn.matches('.edit')) {
                     const id = btn.getAttribute('data-id');
-                    const c = categories.find(x => String(x.id) === String(id));
+                    const c = allCategories.find(x => String(x.id) === String(id));
                     openCat(c);
                 } else if (btn.matches('.delete')) {
                     const id = btn.getAttribute('data-id');
-                    const category = categories.find(c => String(c.id) === String(id));
+                    const category = allCategories.find(c => String(c.id) === String(id));
                     const categoryName = category ? category.name : `#${id}`;
 
                     // Create confirmation modal
@@ -421,6 +480,21 @@ require_role('admin');
             });
 
             document.getElementById('new-cat').addEventListener('click', () => openCat(null));
+
+            // Event listeners for search
+            searchInput.addEventListener('input', applyFilter);
+
+            // Clear search functionality
+            clearSearchBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                applyFilter();
+            });
+
+            // Global function for clear search button in no results state
+            window.clearAllFilters = () => {
+                searchInput.value = '';
+                applyFilter();
+            };
 
             // initial
             await load();

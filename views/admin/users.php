@@ -125,6 +125,61 @@ require_role('admin');
             <p class="mb-0 opacity-75">Administra los usuarios del sistema</p>
         </div>
 
+        <!-- Search and Filters -->
+        <div class="card mb-4"
+            style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: none; border-radius: 15px; box-shadow: 0 5px 20px rgba(255, 107, 53, 0.1);">
+            <div class="card-header bg-transparent">
+                <h5 class="mb-0 text-orange">
+                    <i class="bi bi-funnel"></i> Búsqueda y Filtros
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <!-- Search Bar -->
+                    <div class="col-md-4">
+                        <label class="form-label">
+                            <i class="bi bi-search"></i> Buscar usuarios
+                        </label>
+                        <input type="text" class="form-control" id="search-input"
+                            placeholder="Buscar por nombre, email...">
+                    </div>
+
+                    <!-- Role Filter -->
+                    <div class="col-md-3">
+                        <label class="form-label">
+                            <i class="bi bi-person-badge"></i> Rol
+                        </label>
+                        <select class="form-select" id="role-filter">
+                            <option value="">Todos los roles</option>
+                        </select>
+                    </div>
+
+                    <!-- Status Filter -->
+                    <div class="col-md-2">
+                        <label class="form-label">
+                            <i class="bi bi-toggle-on"></i> Estado
+                        </label>
+                        <select class="form-select" id="status-filter">
+                            <option value="">Todos</option>
+                            <option value="active">Activo</option>
+                            <option value="inactive">Inactivo</option>
+                        </select>
+                    </div>
+
+                    <!-- Clear and Results -->
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-flex gap-2 align-items-center">
+                            <button class="btn btn-outline-orange btn-sm" id="clear-filters">
+                                <i class="bi bi-x-circle"></i> Limpiar
+                            </button>
+                            <span class="badge bg-secondary" id="results-count">0 resultados</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="card users-card">
             <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
@@ -153,21 +208,95 @@ require_role('admin');
         (async function () {
             const base = (window.SABORES360 && SABORES360.API_BASE) ? SABORES360.API_BASE : 'http://localhost:8080/api/';
             const container = document.getElementById('users-list');
-            let users = [];
-            let roles = [];
+
+            // Global variables for filtering
+            let allUsers = [];
+            let allRoles = [];
+            let filteredUsers = [];
+
+            // Get filter elements
+            const searchInput = document.getElementById('search-input');
+            const roleFilter = document.getElementById('role-filter');
+            const statusFilter = document.getElementById('status-filter');
+            const clearFiltersBtn = document.getElementById('clear-filters');
+            const resultsCount = document.getElementById('results-count');
+
+            function populateRoleFilter() {
+                const roleSelect = document.getElementById('role-filter');
+                const currentValue = roleSelect.value;
+
+                // Clear existing options except default
+                roleSelect.innerHTML = '<option value="">Todos los roles</option>';
+
+                // Add role options
+                allRoles.forEach(role => {
+                    const option = document.createElement('option');
+                    option.value = role.id;
+                    option.textContent = role.name || role.label || role.title || `Rol ${role.id}`;
+                    roleSelect.appendChild(option);
+                });
+
+                // Restore previous selection if still valid
+                if (currentValue) {
+                    roleSelect.value = currentValue;
+                }
+            }
+
+            function applyFilters() {
+                const searchTerm = searchInput.value.toLowerCase().trim();
+                const roleValue = roleFilter.value;
+                const statusValue = statusFilter.value;
+
+                filteredUsers = allUsers.filter(user => {
+                    // Search filter (name, email)
+                    if (searchTerm) {
+                        const name = String(user.name || user.fullName || user.username || '').toLowerCase();
+                        const email = String(user.email || '').toLowerCase();
+                        const id = String(user.id || user.userId || '').toLowerCase();
+                        const searchMatch = name.includes(searchTerm) ||
+                            email.includes(searchTerm) ||
+                            id.includes(searchTerm);
+                        if (!searchMatch) return false;
+                    }
+
+                    // Role filter
+                    if (roleValue) {
+                        const userRoleId = String(user.roleId || user.role_id || user.role?.id || '');
+                        if (userRoleId !== roleValue) return false;
+                    }
+
+                    // Status filter
+                    if (statusValue) {
+                        const isActive = (typeof user.isActive !== 'undefined') ?
+                            user.isActive :
+                            (typeof user.active !== 'undefined' ? user.active : true);
+
+                        if (statusValue === 'active' && !isActive) return false;
+                        if (statusValue === 'inactive' && isActive) return false;
+                    }
+
+                    return true;
+                });
+
+                renderUsers();
+            }
 
             function renderUsers() {
-                if (!users || !users.length) {
+                // Update results count
+                resultsCount.textContent = `${filteredUsers.length} resultado${filteredUsers.length !== 1 ? 's' : ''}`;
+
+                if (!filteredUsers || !filteredUsers.length) {
                     container.innerHTML = `
                         <div class="text-center py-5">
                             <i class="bi bi-person-x display-4 text-muted"></i>
-                            <p class="mt-3 text-muted">No hay usuarios registrados</p>
+                            <p class="mt-3 text-muted">${allUsers.length > 0 ? 'No se encontraron usuarios con los filtros aplicados' : 'No hay usuarios registrados'}</p>
+                            ${allUsers.length > 0 ? '<button class="btn btn-outline-orange btn-sm mt-2" onclick="clearAllFilters()"><i class="bi bi-x-circle"></i> Limpiar Filtros</button>' : ''}
                         </div>
                     `;
                     return;
                 }
 
-                const userCards = users.map(u => {
+                const userCards = filteredUsers.map(u => {
                     const id = u.id || u.userId || '';
                     const name = u.name || u.fullName || u.username || '';
                     const email = u.email || '';
@@ -226,8 +355,14 @@ require_role('admin');
                         else if (d.data && Array.isArray(d.data.roles)) list = d.data.roles;
                         else if (Array.isArray(d.data)) list = d.data;
                     }
-                    roles = list;
-                } catch (e) { console.error('loadRoles error', e); roles = []; }
+                    allRoles = list;
+
+                    // Update filter dropdown
+                    populateRoleFilter();
+                } catch (e) {
+                    console.error('loadRoles error', e);
+                    allRoles = [];
+                }
             }
 
             async function loadUsers() {
@@ -240,8 +375,13 @@ require_role('admin');
                         else if (d.data && Array.isArray(d.data.users)) list = d.data.users;
                         else if (Array.isArray(d.items)) list = d.items;
                     }
-                    users = list;
-                } catch (err) { users = []; console.error('loadUsers error', err); }
+                    allUsers = list;
+                    filteredUsers = [...allUsers];
+                } catch (err) {
+                    allUsers = [];
+                    filteredUsers = [];
+                    console.error('loadUsers error', err);
+                }
                 renderUsers();
             }
 
@@ -324,14 +464,14 @@ require_role('admin');
             function fillRoleOptions() {
                 const sel = form.querySelector('[name="roleId"]');
                 if (!sel) return;
-                if (!roles || !roles.length) { sel.innerHTML = '<option value="">(sin roles)</option>'; return; }
-                const opts = ['<option value="">--Seleccionar rol--</option>'].concat(roles.map(r => `<option value="${r.id}">${r.name || r.label || r.title}</option>`));
+                if (!allRoles || !allRoles.length) { sel.innerHTML = '<option value="">(sin roles)</option>'; return; }
+                const opts = ['<option value="">--Seleccionar rol--</option>'].concat(allRoles.map(r => `<option value="${r.id}">${r.name || r.label || r.title}</option>`));
                 sel.innerHTML = opts.join('');
             }
 
             async function openUser(u) {
                 form.reset();
-                if (!roles || !roles.length) await loadRoles();
+                if (!allRoles || !allRoles.length) await loadRoles();
                 fillRoleOptions();
                 const get = n => form.querySelector(`[name="${n}"]`);
                 const idEl = get('id'), nameEl = get('name'), emailEl = get('email'), pwdEl = get('password'), addrEl = get('address'), roleEl = get('roleId'), activeEl = get('isActive');
@@ -448,11 +588,11 @@ require_role('admin');
                 const btn = ev.target;
                 if (btn.matches('.edit')) {
                     const id = btn.getAttribute('data-id');
-                    const u = users.find(x => String(x.id) === String(id));
+                    const u = allUsers.find(x => String(x.id) === String(id));
                     await openUser(u);
                 } else if (btn.matches('.toggle')) {
                     const id = btn.getAttribute('data-id');
-                    const u = users.find(x => String(x.id) === String(id));
+                    const u = allUsers.find(x => String(x.id) === String(id));
                     if (!u) return;
                     const active = (typeof u.isActive !== 'undefined') ? u.isActive : (typeof u.active !== 'undefined' ? u.active : true);
                     const newStatus = active ? 'inactive' : 'active';
@@ -528,6 +668,27 @@ require_role('admin');
             });
 
             document.getElementById('new-user').addEventListener('click', () => openUser(null));
+
+            // Event listeners for filters
+            searchInput.addEventListener('input', applyFilters);
+            roleFilter.addEventListener('change', applyFilters);
+            statusFilter.addEventListener('change', applyFilters);
+
+            // Clear filters functionality
+            clearFiltersBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                roleFilter.value = '';
+                statusFilter.value = '';
+                applyFilters();
+            });
+
+            // Global function for clear filters button in no results state
+            window.clearAllFilters = () => {
+                searchInput.value = '';
+                roleFilter.value = '';
+                statusFilter.value = '';
+                applyFilters();
+            };
 
             // initial
             await loadRoles();

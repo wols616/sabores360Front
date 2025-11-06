@@ -330,6 +330,59 @@ require_auth();
             color: var(--orange-dark);
         }
 
+        /* Search and Filter Styles */
+        .search-container .input-group-text {
+            background: white;
+            border-color: #dee2e6;
+        }
+
+        .search-container .form-control {
+            border-color: #dee2e6;
+        }
+
+        .search-container .form-control:focus {
+            border-color: var(--orange-primary);
+            box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.25);
+        }
+
+        .form-select:focus {
+            border-color: var(--orange-primary);
+            box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.25);
+        }
+
+        .filter-summary .badge {
+            background: var(--orange-primary);
+            color: white;
+            font-size: 0.75rem;
+            padding: 0.4rem 0.6rem;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .filter-summary .badge .remove {
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-left: 0.25rem;
+            opacity: 0.8;
+        }
+
+        .filter-summary .badge .remove:hover {
+            opacity: 1;
+        }
+
+        #clearFilters {
+            border-color: var(--orange-primary);
+            color: var(--orange-primary);
+        }
+
+        #clearFilters:hover {
+            background: var(--orange-primary);
+            border-color: var(--orange-primary);
+            color: white;
+        }
+
         @media (max-width: 768px) {
             .main-container {
                 padding: 1rem 0.5rem;
@@ -383,6 +436,60 @@ require_auth();
         </div>
 
         <div class="orders-container">
+            <!-- Search and Filters -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="search-container">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="bi bi-search text-muted"></i>
+                            </span>
+                            <input type="text" class="form-control border-start-0 ps-0" id="searchInput"
+                                placeholder="Buscar por ID de pedido...">
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="statusFilter">
+                        <option value="">Todos los estados</option>
+                        <option value="pending">Pendiente</option>
+                        <option value="confirmed">Confirmado</option>
+                        <option value="preparing">Preparando</option>
+                        <option value="ready">Listo</option>
+                        <option value="delivered">Entregado</option>
+                        <option value="cancelled">Cancelado</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="dateFilter">
+                        <option value="">Todas las fechas</option>
+                        <option value="today">Hoy</option>
+                        <option value="week">Última semana</option>
+                        <option value="month">Último mes</option>
+                        <option value="3months">Últimos 3 meses</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Filter Summary and Clear Button -->
+            <div class="row mb-3">
+                <div class="col-md-8">
+                    <div class="filter-summary d-flex align-items-center gap-2 flex-wrap">
+                        <span class="text-muted small">
+                            <span id="orderCount">0</span> pedidos encontrados
+                        </span>
+                        <span id="activeFilters"></span>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="clearFilters"
+                        style="display: none;">
+                        <i class="bi bi-x-circle me-1"></i>
+                        Limpiar filtros
+                    </button>
+                </div>
+            </div>
+
             <div id="orders">
                 <div class="loading-skeleton"></div>
                 <div class="loading-skeleton"></div>
@@ -420,6 +527,7 @@ require_auth();
     <script src="/Sabores360/assets/js/common.js"></script>
     <script>
         let allOrders = [];
+        let filteredOrders = [];
 
         // Helper functions
         function getStatusClass(status) {
@@ -730,15 +838,25 @@ require_auth();
             const container = document.getElementById('orders');
 
             if (!orders || orders.length === 0) {
+                const isEmpty = !allOrders || allOrders.length === 0;
+                const message = isEmpty
+                    ? "No tienes pedidos"
+                    : "No se encontraron pedidos con los filtros aplicados";
+                const subMessage = isEmpty
+                    ? "Los pedidos que realices aparecerán aquí."
+                    : "Intenta ajustar los filtros de búsqueda.";
+
                 container.innerHTML = `
                     <div class="empty-state">
-                        <i class="bi bi-bag-x"></i>
-                        <h4>No tienes pedidos</h4>
-                        <p>Los pedidos que realices aparecerán aquí.</p>
-                        <a href="/Sabores360/views/cliente/dashboard.php" class="btn btn-primary mt-3">
-                            <i class="bi bi-grid-3x2-gap me-2"></i>
-                            Ver Menú
-                        </a>
+                        <i class="bi bi-${isEmpty ? 'bag-x' : 'search'}"></i>
+                        <h4>${message}</h4>
+                        <p>${subMessage}</p>
+                        ${isEmpty ? `
+                            <a href="/Sabores360/views/cliente/dashboard.php" class="btn btn-primary mt-3">
+                                <i class="bi bi-grid-3x2-gap me-2"></i>
+                                Ver Menú
+                            </a>
+                        ` : ''}
                     </div>
                 `;
                 return;
@@ -791,6 +909,138 @@ require_auth();
             });
         }
 
+        // Filtering functions
+        function applyFilters() {
+            try {
+                const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+                const statusFilter = document.getElementById('statusFilter').value;
+                const dateFilter = document.getElementById('dateFilter').value;
+
+                filteredOrders = allOrders.filter(order => {
+                    // Search filter (by order ID)
+                    const matchesSearch = !searchTerm ||
+                        order.id.toString().toLowerCase().includes(searchTerm);
+
+                    // Status filter
+                    const orderStatus = (order.status || order.state || 'pending').toLowerCase();
+                    const matchesStatus = !statusFilter || orderStatus === statusFilter.toLowerCase();
+
+                    // Date filter
+                    let matchesDate = true;
+                    if (dateFilter) {
+                        const orderDate = new Date(order.created_at || order.createdAt || order.date);
+                        const now = new Date();
+
+                        switch (dateFilter) {
+                            case 'today':
+                                matchesDate = orderDate.toDateString() === now.toDateString();
+                                break;
+                            case 'week':
+                                const weekAgo = new Date();
+                                weekAgo.setDate(now.getDate() - 7);
+                                matchesDate = orderDate >= weekAgo;
+                                break;
+                            case 'month':
+                                const monthAgo = new Date();
+                                monthAgo.setMonth(now.getMonth() - 1);
+                                matchesDate = orderDate >= monthAgo;
+                                break;
+                            case '3months':
+                                const threeMonthsAgo = new Date();
+                                threeMonthsAgo.setMonth(now.getMonth() - 3);
+                                matchesDate = orderDate >= threeMonthsAgo;
+                                break;
+                        }
+                    }
+
+                    return matchesSearch && matchesStatus && matchesDate;
+                });
+
+                renderOrders(filteredOrders);
+                updateFilterSummary();
+            } catch (error) {
+                console.error('Error applying filters:', error);
+            }
+        }
+
+        function updateFilterSummary() {
+            const orderCount = document.getElementById('orderCount');
+            const activeFilters = document.getElementById('activeFilters');
+            const clearFiltersBtn = document.getElementById('clearFilters');
+
+            // Update count
+            orderCount.textContent = filteredOrders.length;
+
+            // Update active filters display
+            const filters = [];
+            const searchTerm = document.getElementById('searchInput').value.trim();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const dateFilter = document.getElementById('dateFilter').value;
+
+            if (searchTerm) {
+                filters.push({
+                    type: 'search',
+                    label: `ID: "${searchTerm}"`
+                });
+            }
+
+            if (statusFilter) {
+                const statusText = getStatusText(statusFilter);
+                filters.push({
+                    type: 'status',
+                    label: `Estado: ${statusText}`
+                });
+            }
+
+            if (dateFilter) {
+                const dateLabels = {
+                    'today': 'Hoy',
+                    'week': 'Última semana',
+                    'month': 'Último mes',
+                    '3months': 'Últimos 3 meses'
+                };
+                filters.push({
+                    type: 'date',
+                    label: `Fecha: ${dateLabels[dateFilter]}`
+                });
+            }
+
+            if (filters.length > 0) {
+                activeFilters.innerHTML = filters.map(filter =>
+                    `<span class="badge">
+                        ${filter.label}
+                        <span class="remove" data-filter="${filter.type}">×</span>
+                    </span>`
+                ).join('');
+                clearFiltersBtn.style.display = 'inline-block';
+            } else {
+                activeFilters.innerHTML = '';
+                clearFiltersBtn.style.display = 'none';
+            }
+        }
+
+        function clearAllFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('dateFilter').value = '';
+            applyFilters();
+        }
+
+        function removeFilter(filterType) {
+            switch (filterType) {
+                case 'search':
+                    document.getElementById('searchInput').value = '';
+                    break;
+                case 'status':
+                    document.getElementById('statusFilter').value = '';
+                    break;
+                case 'date':
+                    document.getElementById('dateFilter').value = '';
+                    break;
+            }
+            applyFilters();
+        }
+
         async function fetchOrders() {
             const container = document.getElementById('orders');
             try {
@@ -817,7 +1067,8 @@ require_auth();
 
                 if (orders && Array.isArray(orders)) {
                     allOrders = orders;
-                    renderOrders(allOrders);
+                    filteredOrders = [...allOrders];
+                    applyFilters();
                 } else {
                     container.innerHTML = `
                         <div class="empty-state">
@@ -845,6 +1096,30 @@ require_auth();
 
         // Event listeners
         document.addEventListener('DOMContentLoaded', function () {
+            // Search and filter event listeners
+            const searchInput = document.getElementById('searchInput');
+            const statusFilter = document.getElementById('statusFilter');
+            const dateFilter = document.getElementById('dateFilter');
+            const clearFiltersBtn = document.getElementById('clearFilters');
+
+            // Real-time search
+            searchInput.addEventListener('input', applyFilters);
+
+            // Filter changes
+            statusFilter.addEventListener('change', applyFilters);
+            dateFilter.addEventListener('change', applyFilters);
+
+            // Clear filters button
+            clearFiltersBtn.addEventListener('click', clearAllFilters);
+
+            // Remove individual filters
+            document.addEventListener('click', (e) => {
+                if (e.target.matches('.filter-summary .badge .remove')) {
+                    const filterType = e.target.getAttribute('data-filter');
+                    removeFilter(filterType);
+                }
+            });
+
             // Order action event delegation
             document.addEventListener('click', async (ev) => {
                 // View details button

@@ -222,6 +222,20 @@ require_role('vendedor');
             }
         }
 
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+
         .empty-state {
             text-align: center;
             padding: 3rem;
@@ -232,6 +246,10 @@ require_role('vendedor');
             font-size: 4rem;
             color: var(--orange-primary);
             margin-bottom: 1rem;
+        }
+
+        .text-orange {
+            color: var(--orange-primary) !important;
         }
     </style>
 </head>
@@ -249,6 +267,59 @@ require_role('vendedor');
                 Pedidos Asignados
             </h1>
             <p class="text-muted mb-0">Gestiona y actualiza el estado de tus pedidos</p>
+        </div>
+
+        <!-- Search and Filters -->
+        <div class="orders-container mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0 text-orange">
+                    <i class="bi bi-funnel"></i> Búsqueda y Filtros
+                </h5>
+                <span class="badge bg-secondary" id="results-count">0 resultados</span>
+            </div>
+            <div class="row g-3">
+                <!-- Search Bar -->
+                <div class="col-md-4">
+                    <label class="form-label">
+                        <i class="bi bi-search"></i> Buscar pedidos
+                    </label>
+                    <input type="text" class="form-control" id="search-input" placeholder="Buscar por ID, cliente...">
+                </div>
+
+                <!-- Status Filter -->
+                <div class="col-md-3">
+                    <label class="form-label">
+                        <i class="bi bi-flag"></i> Estado
+                    </label>
+                    <select class="form-select" id="status-filter">
+                        <option value="">Todos los estados</option>
+                        <option value="pendiente">Pendiente</option>
+                        <option value="confirmado">Confirmado</option>
+                        <option value="en preparación">En Preparación</option>
+                        <option value="en camino">En Camino</option>
+                        <option value="entregado">Entregado</option>
+                        <option value="cancelado">Cancelado</option>
+                    </select>
+                </div>
+
+                <!-- Date Range -->
+                <div class="col-md-3">
+                    <label class="form-label">
+                        <i class="bi bi-calendar-range"></i> Rango de fechas
+                    </label>
+                    <div class="input-group">
+                        <input type="date" class="form-control" id="date-from" title="Desde">
+                        <input type="date" class="form-control" id="date-to" title="Hasta">
+                    </div>
+                </div>
+
+                <!-- Clear Filters Button -->
+                <div class="col-md-2 d-flex align-items-end">
+                    <button class="btn btn-outline-danger btn-sm w-100" id="clear-filters">
+                        <i class="bi bi-x-circle"></i> Limpiar
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div class="orders-container">
@@ -347,7 +418,6 @@ require_role('vendedor');
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
     <script src="/Sabores360/assets/js/common.js"></script>
     <script>
         // Helper functions
@@ -367,9 +437,6 @@ require_role('vendedor');
             return 'status-pending';
         }
 
-        // Make getStatusBadgeClass available globally for modal
-        window.getStatusBadgeClass = getStatusBadgeClass;
-
         function formatDate(dateString) {
             if (!dateString) return '';
             return new Date(dateString).toLocaleString('es-ES', {
@@ -381,9 +448,22 @@ require_role('vendedor');
             });
         }
 
-        // Load and render orders
+        // Global variables for filtering
+        let allOrders = [];
+        let filteredOrders = [];
+
+        // Main orders loading and management
         (async function () {
             const container = document.getElementById('my-orders');
+
+            // Get filter elements
+            const searchInput = document.getElementById('search-input');
+            const statusFilter = document.getElementById('status-filter');
+            const dateFromFilter = document.getElementById('date-from');
+            const dateToFilter = document.getElementById('date-to');
+            const clearFiltersBtn = document.getElementById('clear-filters');
+            const resultsCount = document.getElementById('results-count');
+
             try {
                 const d = await (window.SABORES360 && SABORES360.API ? SABORES360.API.get('seller/orders') : (async () => {
                     const res = await fetch((window.SABORES360 && SABORES360.API_BASE) ? SABORES360.API_BASE + 'seller/orders' : 'http://localhost:8080/api/seller/orders', { credentials: 'include' });
@@ -401,7 +481,6 @@ require_role('vendedor');
                     if (obj.data && Array.isArray(obj.data.orders)) return obj.data.orders;
                     if (obj.data && Array.isArray(obj.data)) return obj.data;
 
-                    // Try to find any property that's an array of objects with id
                     for (const k of Object.keys(obj)) {
                         const v = obj[k];
                         if (Array.isArray(v) && v.length && v[0] && (v[0].id !== undefined)) return v;
@@ -409,173 +488,22 @@ require_role('vendedor');
                     return null;
                 }
 
-                // Prefer the explicit shape { success:true, data:{ orders: [...] } }
                 const orders = (d && d.data && Array.isArray(d.data.orders)) ? d.data.orders :
                     ((d && Array.isArray(d.orders)) ? d.orders :
                         (findArrayOfObjectsWithId(d) || findArrayOfObjectsWithId(d && d.data) || null));
 
                 if (orders && Array.isArray(orders)) {
-                    if (orders.length === 0) {
-                        container.innerHTML = `
-                            <div class="empty-state">
-                                <i class="bi bi-box-seam"></i>
-                                <h4>No tienes pedidos asignados</h4>
-                                <p>Los nuevos pedidos aparecerán aquí cuando se te asignen.</p>
-                            </div>
-                        `;
-                        return;
-                    }
+                    allOrders = orders;
+                    filteredOrders = [...orders];
 
-                    container.innerHTML = '';
-                    orders.forEach(o => {
-                        const status = o.status || o.state || 'Pendiente';
-                        const clientName = (o.client && (o.client.name || o.client.email)) ? (o.client.name || o.client.email) : 'Cliente';
-                        const clientEmail = (o.client && o.client.email) ? o.client.email : '';
-                        const addr = o.deliveryAddress || o.delivery_address || '';
-                        const total = o.totalAmount || o.total_amount || o.total || 0;
-                        const createdAt = o.createdAt || o.created_at || '';
-
-                        const orderCard = document.createElement('div');
-                        orderCard.className = 'order-card';
-                        orderCard.setAttribute('data-id', o.id);
-                        orderCard.setAttribute('data-total', total);
-                        orderCard.setAttribute('data-client', clientName);
-                        orderCard.setAttribute('data-addr', addr);
-
-                        orderCard.innerHTML = `
-                            <div class="order-header">
-                                <div class="order-info">
-                                    <div class="order-id">#${o.id}</div>
-                                    <div class="client-info">
-                                        <i class="bi bi-person"></i>
-                                        <strong>${clientName}</strong>
-                                        ${clientEmail ? `<span class="text-muted">(${clientEmail})</span>` : ''}
-                                    </div>
-                                    <div class="client-info">
-                                        <i class="bi bi-geo-alt"></i>
-                                        ${addr || 'Dirección no especificada'}
-                                    </div>
-                                    <div class="client-info">
-                                        <i class="bi bi-calendar"></i>
-                                        ${formatDate(createdAt)}
-                                    </div>
-                                </div>
-                                <div class="order-actions">
-                                    <div class="d-flex align-items-center gap-2 mb-2">
-                                        <span class="status-badge ${getStatusBadgeClass(status)}">${status}</span>
-                                        <strong class="text-success">${formatCurrency(total)}</strong>
-                                    </div>
-                                    <div class="d-flex gap-2 w-100">
-                                        <select class="status-select form-select form-select-sm" data-id="${o.id}">
-                                            <option value="Pendiente" ${status.toLowerCase() === 'pendiente' ? 'selected' : ''}>Pendiente</option>
-                                            <option value="Confirmado" ${status.toLowerCase() === 'confirmado' ? 'selected' : ''}>Confirmado</option>
-                                            <option value="En preparación" ${status.toLowerCase().includes('preparación') || status.toLowerCase().includes('preparacion') ? 'selected' : ''}>En preparación</option>
-                                            <option value="En camino" ${status.toLowerCase().includes('camino') ? 'selected' : ''}>En camino</option>
-                                            <option value="Entregado" ${status.toLowerCase() === 'entregado' ? 'selected' : ''}>Entregado</option>
-                                            <option value="Cancelado" ${status.toLowerCase() === 'cancelado' ? 'selected' : ''}>Cancelado</option>
-                                        </select>
-                                        <button class="btn btn-update btn-sm" data-id="${o.id}">
-                                            <i class="bi bi-arrow-repeat"></i> Actualizar
-                                        </button>
-                                        <button class="btn btn-view btn-sm" data-id="${o.id}" onclick="viewOrder(${o.id})">
-                                            <i class="bi bi-eye"></i> Ver
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="status-msg"></div>
-                        `;
-
-                        container.appendChild(orderCard);
-                    });
-
-                    // Event handlers for update buttons
-                    container.addEventListener('click', async (ev) => {
-                        if (ev.target.matches('.btn-update') || ev.target.closest('.btn-update')) {
-                            const btn = ev.target.matches('.btn-update') ? ev.target : ev.target.closest('.btn-update');
-                            const id = btn.getAttribute('data-id');
-                            const card = btn.closest('.order-card');
-                            const select = card && card.querySelector('.status-select');
-                            const msg = card && card.querySelector('.status-msg');
-
-                            if (!select) return;
-
-                            const newStatus = select.value && select.value.toString().trim();
-                            if (!newStatus) {
-                                if (msg) {
-                                    msg.textContent = 'Seleccione un estado antes de actualizar.';
-                                    msg.className = 'status-msg error';
-                                }
-                                return;
-                            }
-
-                            btn.disabled = true;
-                            btn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Actualizando...';
-
-                            if (msg) {
-                                msg.textContent = 'Actualizando estado...';
-                                msg.className = 'status-msg';
-                            }
-
-                            try {
-                                const path = `seller/orders/${id}/status`;
-                                const body = { newStatus: newStatus, status: newStatus };
-                                const res = (window.SABORES360 && SABORES360.API) ?
-                                    await SABORES360.API.post(path, body) :
-                                    await (async () => {
-                                        const r = await fetch((window.SABORES360 && SABORES360.API_BASE) ? SABORES360.API_BASE + path : `http://localhost:8080/api/${path}`, {
-                                            method: 'POST',
-                                            credentials: 'include',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify(body)
-                                        });
-                                        const t = await r.text();
-                                        try { return JSON.parse(t); } catch (e) { return { success: r.ok, httpStatus: r.status, raw: t }; }
-                                    })();
-
-                                if (res && res.success) {
-                                    if (msg) {
-                                        msg.textContent = 'Estado actualizado correctamente.';
-                                        msg.className = 'status-msg success';
-                                    }
-
-                                    // Update status badge
-                                    const statusBadge = card.querySelector('.status-badge');
-                                    if (statusBadge) {
-                                        statusBadge.textContent = newStatus;
-                                        statusBadge.className = 'status-badge ' + getStatusBadgeClass(newStatus);
-                                    }
-
-                                    setTimeout(() => {
-                                        if (msg) msg.textContent = '';
-                                    }, 3000);
-                                } else {
-                                    if (msg) {
-                                        msg.textContent = (res && res.message) ? res.message : 'Error al actualizar estado.';
-                                        msg.className = 'status-msg error';
-                                    }
-                                }
-                            } catch (err) {
-                                if (msg) {
-                                    msg.textContent = 'Error de conexión';
-                                    msg.className = 'status-msg error';
-                                }
-                            } finally {
-                                btn.disabled = false;
-                                btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Actualizar';
-                            }
-                        }
-                    });
+                    setupFilterEventListeners();
+                    renderOrders();
                 } else {
                     container.innerHTML = `
                         <div class="empty-state">
                             <i class="bi bi-exclamation-triangle"></i>
                             <h4>No se pudieron cargar los pedidos</h4>
                             <p>Inténtalo de nuevo más tarde.</p>
-                            <details class="mt-3">
-                                <summary class="text-muted">Información técnica</summary>
-                                <pre class="small mt-2">${JSON.stringify(d, null, 2)}</pre>
-                            </details>
                         </div>
                     `;
                 }
@@ -589,6 +517,240 @@ require_role('vendedor');
                     </div>
                 `;
             }
+
+            function setupFilterEventListeners() {
+                searchInput.addEventListener('input', applyFilters);
+                statusFilter.addEventListener('change', applyFilters);
+                dateFromFilter.addEventListener('change', applyFilters);
+                dateToFilter.addEventListener('change', applyFilters);
+
+                clearFiltersBtn.addEventListener('click', () => {
+                    searchInput.value = '';
+                    statusFilter.value = '';
+                    dateFromFilter.value = '';
+                    dateToFilter.value = '';
+                    applyFilters();
+                });
+
+                window.clearAllFilters = () => {
+                    searchInput.value = '';
+                    statusFilter.value = '';
+                    dateFromFilter.value = '';
+                    dateToFilter.value = '';
+                    applyFilters();
+                };
+            }
+
+            function applyFilters() {
+                const searchTerm = searchInput.value.toLowerCase().trim();
+                const statusValue = statusFilter.value.toLowerCase();
+                const dateFrom = dateFromFilter.value;
+                const dateTo = dateToFilter.value;
+
+                filteredOrders = allOrders.filter(order => {
+                    if (searchTerm) {
+                        const id = String(order.id || '').toLowerCase();
+                        const clientName = String(order.client?.name || '').toLowerCase();
+                        const clientEmail = String(order.client?.email || '').toLowerCase();
+                        const searchMatch = id.includes(searchTerm) ||
+                            clientName.includes(searchTerm) ||
+                            clientEmail.includes(searchTerm);
+                        if (!searchMatch) return false;
+                    }
+
+                    if (statusValue) {
+                        const orderStatus = String(order.status || order.state || '').toLowerCase();
+                        if (!orderStatus.includes(statusValue)) return false;
+                    }
+
+                    if (dateFrom || dateTo) {
+                        const orderDate = order.createdAt || order.created_at || order.date;
+                        if (!orderDate) return false;
+
+                        const orderDateObj = new Date(orderDate);
+                        const fromDateObj = dateFrom ? new Date(dateFrom) : null;
+                        const toDateObj = dateTo ? new Date(dateTo + 'T23:59:59') : null;
+
+                        if (fromDateObj && orderDateObj < fromDateObj) return false;
+                        if (toDateObj && orderDateObj > toDateObj) return false;
+                    }
+
+                    return true;
+                });
+
+                renderOrders();
+                updateResultsCount();
+            }
+
+            function renderOrders() {
+                if (!filteredOrders || !filteredOrders.length) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="bi bi-box-seam"></i>
+                            <h4>${allOrders.length === 0 ? 'No tienes pedidos asignados' : 'No se encontraron pedidos'}</h4>
+                            <p>${allOrders.length === 0 ? 'Los nuevos pedidos aparecerán aquí cuando se te asignen.' : 'No se encontraron pedidos con los filtros aplicados.'}</p>
+                            ${allOrders.length > 0 ? '<button class="btn btn-outline-warning btn-sm" onclick="clearAllFilters()"><i class="bi bi-x-circle"></i> Limpiar Filtros</button>' : ''}
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = '';
+                filteredOrders.forEach(o => {
+                    const status = o.status || o.state || 'Pendiente';
+                    const clientName = (o.client && (o.client.name || o.client.email)) ? (o.client.name || o.client.email) : 'Cliente';
+                    const clientEmail = (o.client && o.client.email) ? o.client.email : '';
+                    const addr = o.deliveryAddress || o.delivery_address || '';
+                    const total = o.totalAmount || o.total_amount || o.total || 0;
+                    const createdAt = o.createdAt || o.created_at || '';
+
+                    const orderCard = document.createElement('div');
+                    orderCard.className = 'order-card';
+
+                    orderCard.innerHTML = `
+                        <div class="order-header">
+                            <div class="order-info">
+                                <div class="order-id">#${o.id}</div>
+                                <div class="client-info">
+                                    <i class="bi bi-person"></i>
+                                    <strong>${clientName}</strong>
+                                    ${clientEmail ? `<span class="text-muted">(${clientEmail})</span>` : ''}
+                                </div>
+                                <div class="client-info">
+                                    <i class="bi bi-geo-alt"></i>
+                                    ${addr || 'Dirección no especificada'}
+                                </div>
+                                <div class="client-info">
+                                    <i class="bi bi-calendar"></i>
+                                    ${formatDate(createdAt)}
+                                </div>
+                            </div>
+                            <div class="order-actions">
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <span class="status-badge ${getStatusBadgeClass(status)}">${status}</span>
+                                    <strong class="text-success">${formatCurrency(total)}</strong>
+                                </div>
+                                <div class="d-flex gap-2 w-100">
+                                    <select class="status-select form-select form-select-sm" data-id="${o.id}">
+                                        <option value="Pendiente" ${status.toLowerCase() === 'pendiente' ? 'selected' : ''}>Pendiente</option>
+                                        <option value="Confirmado" ${status.toLowerCase() === 'confirmado' ? 'selected' : ''}>Confirmado</option>
+                                        <option value="En preparación" ${status.toLowerCase().includes('preparación') || status.toLowerCase().includes('preparacion') ? 'selected' : ''}>En preparación</option>
+                                        <option value="En camino" ${status.toLowerCase().includes('camino') ? 'selected' : ''}>En camino</option>
+                                        <option value="Entregado" ${status.toLowerCase() === 'entregado' ? 'selected' : ''}>Entregado</option>
+                                        <option value="Cancelado" ${status.toLowerCase() === 'cancelado' ? 'selected' : ''}>Cancelado</option>
+                                    </select>
+                                    <button class="btn btn-update btn-sm" data-id="${o.id}">
+                                        <i class="bi bi-arrow-repeat"></i> Actualizar
+                                    </button>
+                                    <button class="btn btn-view btn-sm" data-id="${o.id}" onclick="viewOrder(${o.id})">
+                                        <i class="bi bi-eye"></i> Ver
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="status-msg"></div>
+                    `;
+
+                    container.appendChild(orderCard);
+                });
+
+                setupOrderEventHandlers();
+            }
+
+            function setupOrderEventHandlers() {
+                container.addEventListener('click', async (ev) => {
+                    if (ev.target.matches('.btn-update') || ev.target.closest('.btn-update')) {
+                        const btn = ev.target.matches('.btn-update') ? ev.target : ev.target.closest('.btn-update');
+                        const id = btn.getAttribute('data-id');
+                        const card = btn.closest('.order-card');
+                        const select = card && card.querySelector('.status-select');
+                        const msg = card && card.querySelector('.status-msg');
+
+                        if (!select) return;
+
+                        const newStatus = select.value && select.value.toString().trim();
+                        if (!newStatus) {
+                            if (msg) {
+                                msg.textContent = 'Seleccione un estado antes de actualizar.';
+                                msg.className = 'status-msg error';
+                            }
+                            return;
+                        }
+
+                        btn.disabled = true;
+                        btn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Actualizando...';
+
+                        if (msg) {
+                            msg.textContent = 'Actualizando estado...';
+                            msg.className = 'status-msg';
+                        }
+
+                        try {
+                            const path = `seller/orders/${id}/status`;
+                            const body = { newStatus: newStatus, status: newStatus };
+                            const res = (window.SABORES360 && SABORES360.API) ?
+                                await SABORES360.API.post(path, body) :
+                                await (async () => {
+                                    const r = await fetch((window.SABORES360 && SABORES360.API_BASE) ? SABORES360.API_BASE + path : `http://localhost:8080/api/${path}`, {
+                                        method: 'POST',
+                                        credentials: 'include',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify(body)
+                                    });
+                                    const t = await r.text();
+                                    try { return JSON.parse(t); } catch (e) { return { success: r.ok, httpStatus: r.status, raw: t }; }
+                                })();
+
+                            if (res && res.success) {
+                                if (msg) {
+                                    msg.textContent = 'Estado actualizado correctamente.';
+                                    msg.className = 'status-msg success';
+                                }
+
+                                const statusBadge = card.querySelector('.status-badge');
+                                if (statusBadge) {
+                                    statusBadge.textContent = newStatus;
+                                    statusBadge.className = 'status-badge ' + getStatusBadgeClass(newStatus);
+                                }
+
+                                const orderIndex = allOrders.findIndex(order => order.id == id);
+                                if (orderIndex !== -1) {
+                                    allOrders[orderIndex].status = newStatus;
+                                    allOrders[orderIndex].state = newStatus;
+                                }
+
+                                setTimeout(() => {
+                                    if (msg) msg.textContent = '';
+                                }, 3000);
+                            } else {
+                                if (msg) {
+                                    msg.textContent = (res && res.message) ? res.message : 'Error al actualizar estado.';
+                                    msg.className = 'status-msg error';
+                                }
+                            }
+                        } catch (err) {
+                            if (msg) {
+                                msg.textContent = 'Error de conexión';
+                                msg.className = 'status-msg error';
+                            }
+                        } finally {
+                            btn.disabled = false;
+                            btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Actualizar';
+                        }
+                    }
+                });
+            }
+
+            function updateResultsCount() {
+                if (resultsCount) {
+                    const total = allOrders.length;
+                    const filtered = filteredOrders.length;
+                    resultsCount.textContent = filtered === total ?
+                        `${total} resultado${total !== 1 ? 's' : ''}` :
+                        `${filtered} de ${total} resultados`;
+                }
+            }
+
         })();
 
         // Order detail modal function
@@ -597,21 +759,11 @@ require_role('vendedor');
                 const modalEl = document.getElementById('orderDetailModal');
                 const bsModal = new bootstrap.Modal(modalEl);
 
-                // Reset modal content
                 document.getElementById('order-detail-loading').classList.remove('d-none');
                 document.getElementById('order-detail-content').classList.add('d-none');
-                document.getElementById('od-id').textContent = '';
-                document.getElementById('od-created').textContent = '';
-                document.getElementById('od-status').textContent = '';
-                document.getElementById('od-client').textContent = '';
-                document.getElementById('od-address').textContent = '';
-                document.getElementById('od-payment').textContent = '';
-                document.getElementById('od-items').innerHTML = '';
-                document.getElementById('od-total').textContent = '';
 
                 bsModal.show();
 
-                // Build endpoint and fetch
                 let detailJson = null;
                 if (window.SABORES360 && SABORES360.API) {
                     try {
@@ -626,7 +778,6 @@ require_role('vendedor');
                 }
 
                 if (!detailJson || !detailJson.order) {
-                    // Try alternate shapes
                     if (detailJson && detailJson.data && detailJson.data.order) detailJson = { order: detailJson.data.order };
                 }
 
@@ -639,7 +790,6 @@ require_role('vendedor');
 
                 const order = detailJson.order;
 
-                // Fill modal fields
                 document.getElementById('od-id').textContent = order.id || '';
                 document.getElementById('od-created').textContent = order.createdAt ? formatDate(order.createdAt) : '';
 
@@ -657,7 +807,6 @@ require_role('vendedor');
                 document.getElementById('od-address').textContent = order.deliveryAddress || client.address || 'No especificada';
                 document.getElementById('od-payment').textContent = order.paymentMethod ? order.paymentMethod : 'No especificado';
 
-                // Items
                 const itemsEl = document.getElementById('od-items');
                 itemsEl.innerHTML = '';
                 if (Array.isArray(order.items) && order.items.length) {
@@ -681,7 +830,6 @@ require_role('vendedor');
 
                 document.getElementById('od-total').textContent = formatCurrency(order.totalAmount || order.total || order.amount || 0);
 
-                // Show content
                 document.getElementById('order-detail-loading').classList.add('d-none');
                 document.getElementById('order-detail-content').classList.remove('d-none');
 
@@ -690,19 +838,6 @@ require_role('vendedor');
                 alert('Error al cargar detalle del pedido.');
             }
         }
-
-        // Add spinning animation for loading states
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-            .spin {
-                animation: spin 1s linear infinite;
-            }
-        `;
-        document.head.appendChild(style);
     </script>
 </body>
 
