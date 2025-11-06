@@ -15,12 +15,7 @@ require_auth();
 <body>
     <header>
         <h1>Mis pedidos</h1>
-        <nav>
-            <a href="/Sabores360/views/cliente/dashboard.php">Menú</a> |
-            <a href="/Sabores360/views/cliente/my_orders.php">Mis pedidos</a> |
-            <a href="/Sabores360/views/cliente/profile.php">Mi perfil</a> |
-            <a href="/Sabores360/logout.php">Cerrar sesión</a>
-        </nav>
+        <?php require __DIR__ . '/../_navbar.php'; ?>
     </header>
 
     <main>

@@ -15,13 +15,8 @@ require_role('vendedor');
 <body>
     <header>
         <h1>Mi perfil (Vendedor)</h1>
-        <nav>
-            <a href="/Sabores360/views/vendedor/dashboard.php">Dashboard</a> |
-            <a href="/Sabores360/views/vendedor/orders.php">Pedidos</a> |
-            <a href="/Sabores360/views/vendedor/products.php">Productos</a> |
-            <a href="/Sabores360/views/vendedor/profile.php">Perfil</a> |
-            <a href="/Sabores360/logout.php">Cerrar sesión</a>
-        </nav>
+        <?php $active = 'profile';
+        require __DIR__ . '/../_navbar.php'; ?>
     </header>
 
     <main>

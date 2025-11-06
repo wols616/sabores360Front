@@ -15,12 +15,7 @@ require_auth();
 <body>
     <header>
         <h1>Carrito</h1>
-        <nav>
-            <a href="/Sabores360/views/cliente/dashboard.php">Menú</a> |
-            <a href="/Sabores360/views/cliente/my_orders.php">Mis pedidos</a> |
-            <a href="/Sabores360/views/cliente/profile.php">Mi perfil</a> |
-            <a href="/Sabores360/logout.php">Cerrar sesión</a>
-        </nav>
+        <?php require __DIR__ . '/../_navbar.php'; ?>
     </header>
 
     <main>
@@ -203,25 +198,37 @@ require_auth();
 
             document.getElementById('clear').addEventListener('click', () => { if (!confirm('Vaciar carrito?')) return; saveCart([]); render(); });
 
+            // Redirect to a checkout page where user fills delivery address and selects payment method
             document.getElementById('checkout').addEventListener('click', async () => {
                 const cart = loadCart();
-                if (!cart || !cart.length) return alert('Carrito vacío');
-                const delivery_address = prompt('Dirección de entrega');
-                const payment_method = prompt('Método de pago (Efectivo/Tarjeta)');
-                try {
-                    const payload = { delivery_address, payment_method, cart };
-                    const d = await (window.SABORES360 && SABORES360.API ? SABORES360.API.post('client/orders', payload) : (async () => { const r = await fetch(base + 'client/orders', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const t = await r.text(); try { return JSON.parse(t); } catch (e) { return { success: r.ok, raw: t } } })());
-                    if (d && d.success) {
-                        alert('Pedido creado #' + (d.order_id || (d.data && d.data.order_id) || ''));
-                        saveCart([]);
-                        render();
-                        window.location.href = '/Sabores360/views/cliente/my_orders.php?_t=' + Date.now();
-                    } else {
-                        console.error('Order API error', d);
-                        alert(d && (d.message || d.error || d.raw) ? (d.message || d.error || JSON.stringify(d.raw || d)) : 'No se pudo crear pedido');
-                    }
-                } catch (err) { console.error('Checkout failed', err); alert('Error al crear pedido: ' + (err && err.message ? err.message : String(err))); }
+                if (!cart || !cart.length) { showFlash('Carrito vacío'); return; }
+                window.location.href = '/Sabores360/views/cliente/checkout.php';
             });
+
+            // flash helper to show non-blocking messages (same style as dashboard)
+            function showFlash(msg, timeout = 2500) {
+                try {
+                    let el = document.getElementById('flash-msg');
+                    if (!el) {
+                        el = document.createElement('div');
+                        el.id = 'flash-msg';
+                        el.style.position = 'fixed';
+                        el.style.right = '12px';
+                        el.style.bottom = '12px';
+                        el.style.padding = '8px 12px';
+                        el.style.background = '#222';
+                        el.style.color = '#fff';
+                        el.style.borderRadius = '4px';
+                        el.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
+                        el.style.zIndex = 9999;
+                        document.body.appendChild(el);
+                    }
+                    el.textContent = msg;
+                    el.style.display = 'block';
+                    clearTimeout(el._t);
+                    el._t = setTimeout(() => { el.style.display = 'none'; }, timeout);
+                } catch (e) { console.log(msg); }
+            }
 
             // initial render
             render();

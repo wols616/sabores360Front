@@ -16,13 +16,7 @@ require_auth();
 <body>
     <header>
         <h1>Menú</h1>
-        <nav>
-            <a href="/Sabores360/views/cliente/dashboard.php">Menú</a> |
-            <a href="/Sabores360/views/cliente/my_orders.php">Mis pedidos</a> |
-            <a href="/Sabores360/views/cliente/profile.php">Mi perfil</a> |
-            <a href="/Sabores360/views/cliente/cart.php">Carrito</a> |
-            <a href="/Sabores360/logout.php">Cerrar sesión</a>
-        </nav>
+        <?php require __DIR__ . '/../_navbar.php'; ?>
     </header>
 
     <main>
@@ -126,8 +120,8 @@ require_auth();
                                 try { store = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) { store = []; }
                                 store.push({ id: parseInt(id, 10), name, price, quantity: qty, image: normalizeImageUrl(image) });
                                 localStorage.setItem(key, JSON.stringify(store));
-                                // notify user
-                                alert('Producto añadido al carrito');
+                                // notify user (non-blocking)
+                                showFlash('Producto añadido al carrito');
                             }
                         });
                     } else c.textContent = 'No hay productos disponibles.';
@@ -178,6 +172,31 @@ require_auth();
             }
 
             loadProducts();
+
+            // small flash message helper (transient)
+            function showFlash(msg, timeout = 2500) {
+                try {
+                    let el = document.getElementById('flash-msg');
+                    if (!el) {
+                        el = document.createElement('div');
+                        el.id = 'flash-msg';
+                        el.style.position = 'fixed';
+                        el.style.right = '12px';
+                        el.style.bottom = '12px';
+                        el.style.padding = '8px 12px';
+                        el.style.background = '#222';
+                        el.style.color = '#fff';
+                        el.style.borderRadius = '4px';
+                        el.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
+                        el.style.zIndex = 9999;
+                        document.body.appendChild(el);
+                    }
+                    el.textContent = msg;
+                    el.style.display = 'block';
+                    clearTimeout(el._t);
+                    el._t = setTimeout(() => { el.style.display = 'none'; }, timeout);
+                } catch (e) { console.log(msg); }
+            }
         })();
     </script>
 </body>
