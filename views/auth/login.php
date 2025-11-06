@@ -8,21 +8,129 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Login - Sabores360</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/Sabores360/assets/css/styles.css">
+    <style>
+        :root {
+            --orange-primary: #ff6b35;
+            --orange-secondary: #ff8c42;
+            --orange-light: #ffad73;
+            --orange-dark: #e55a2b;
+            --orange-bg: #fff4f0;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--orange-bg) 0%, #ffeee6 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .auth-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: none;
+            box-shadow: 0 10px 30px rgba(255, 107, 53, 0.15);
+            border-radius: 20px;
+        }
+
+        .btn-orange {
+            background: linear-gradient(45deg, var(--orange-primary), var(--orange-secondary));
+            border: none;
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .btn-orange:hover {
+            background: linear-gradient(45deg, var(--orange-dark), var(--orange-primary));
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 53, 0.3);
+            color: white;
+        }
+
+        .form-control:focus {
+            border-color: var(--orange-primary);
+            box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.25);
+        }
+
+        .text-orange {
+            color: var(--orange-primary) !important;
+        }
+
+        .text-orange:hover {
+            color: var(--orange-dark) !important;
+        }
+
+        .brand-logo {
+            color: var(--orange-primary);
+            font-weight: 700;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(255, 107, 53, 0.1);
+        }
+    </style>
 </head>
 
 <body>
-    <main class="container">
-        <h1>Iniciar sesión</h1>
-        <form id="login-form">
-            <label>Email<br><input type="email" name="email" required></label><br>
-            <label>Contraseña<br><input type="password" name="password" required minlength="8"></label><br>
-            <button type="submit">Entrar</button>
-        </form>
-        <p><a href="/Sabores360/views/auth/register.php">Crear cuenta</a> | <a
-                href="/Sabores360/views/auth/forgot_password.php">Olvidé mi contraseña</a></p>
-    </main>
+    <div class="container-fluid vh-100 d-flex align-items-center justify-content-center">
+        <div class="row w-100 justify-content-center">
+            <div class="col-md-6 col-lg-4">
+                <div class="card auth-card">
+                    <div class="card-body p-5">
+                        <div class="text-center mb-4">
+                            <h1 class="brand-logo mb-2">
+                                <i class="bi bi-shop"></i> Sabores360
+                            </h1>
+                            <h4 class="text-orange">Iniciar Sesión</h4>
+                            <p class="text-muted">Bienvenido de vuelta</p>
+                        </div>
 
+                        <form id="login-form">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">
+                                    <i class="bi bi-envelope"></i> Correo electrónico
+                                </label>
+                                <input type="email" class="form-control form-control-lg" id="email" name="email"
+                                    required>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="password" class="form-label">
+                                    <i class="bi bi-lock"></i> Contraseña
+                                </label>
+                                <input type="password" class="form-control form-control-lg" id="password"
+                                    name="password" required minlength="8">
+                            </div>
+
+                            <div class="d-grid mb-3">
+                                <button type="submit" class="btn btn-orange btn-lg">
+                                    <i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión
+                                </button>
+                            </div>
+                        </form>
+
+                        <hr class="my-4">
+
+                        <div class="text-center">
+                            <p class="mb-2">
+                                <a href="/Sabores360/views/auth/register.php" class="text-orange text-decoration-none">
+                                    <i class="bi bi-person-plus"></i> Crear cuenta nueva
+                                </a>
+                            </p>
+                            <p class="mb-0">
+                                <a href="/Sabores360/views/auth/forgot_password.php"
+                                    class="text-orange text-decoration-none">
+                                    <i class="bi bi-question-circle"></i> ¿Olvidaste tu contraseña?
+                                </a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="/Sabores360/assets/js/common.js"></script>
     <script>
         (function () {
@@ -46,8 +154,16 @@
 
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
+
+                // Show loading
+                const submitBtn = form.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Iniciando sesión...';
+                submitBtn.disabled = true;
+
                 const fd = new FormData(form);
                 const payload = { email: fd.get('email'), password: fd.get('password') };
+
                 try {
                     const data = await doLogin(payload);
                     console.log('login response:', data);
@@ -59,8 +175,12 @@
 
                     if (!successFlag) {
                         const msg = (data && data.message) ? data.message : 'Credenciales inválidas';
-                        if (window.SABORES360 && SABORES360.Notifications) SABORES360.Notifications.error(msg);
-                        else alert(msg);
+                        await Swal.fire({
+                            icon: 'error',
+                            title: 'Error de autenticación',
+                            text: msg,
+                            confirmButtonColor: '#ff6b35'
+                        });
                         return;
                     }
 
@@ -85,7 +205,14 @@
                         } catch (e) { /* ignore */ }
                     }
 
-                    if (window.SABORES360 && SABORES360.Notifications) SABORES360.Notifications.success('Bienvenido!');
+                    await Swal.fire({
+                        icon: 'success',
+                        title: '¡Bienvenido!',
+                        text: 'Inicio de sesión exitoso',
+                        timer: 1500,
+                        showConfirmButton: false,
+                        confirmButtonColor: '#ff6b35'
+                    });
 
                     const role = (user && (user.role || user.role_name)) || data.role || 'client';
                     const r = role.toString().toLowerCase();
@@ -98,7 +225,15 @@
                     }
                 } catch (err) {
                     console.error(err);
-                    alert('Error en el servidor');
+                    await Swal.fire({
+                        icon: 'error',
+                        title: 'Error del servidor',
+                        text: 'No se pudo conectar con el servidor. Intenta de nuevo.',
+                        confirmButtonColor: '#ff6b35'
+                    });
+                } finally {
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
                 }
             });
 

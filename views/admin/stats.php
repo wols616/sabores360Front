@@ -8,27 +8,69 @@ require_role('admin');
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Admin - Estadísticas</title>
+    <title>Admin - Estadísticas | Sabores360</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/Sabores360/assets/css/styles.css">
     <style>
-        .controls {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            margin-bottom: 12px
+        :root {
+            --orange-primary: #ff6b35;
+            --orange-secondary: #ff8c42;
+            --orange-light: #ffad73;
+            --orange-dark: #e55a2b;
+            --orange-bg: #fff4f0;
         }
 
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px
+        body {
+            background: linear-gradient(135deg, var(--orange-bg) 0%, #feeee7 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        .card {
-            padding: 12px;
-            border: 1px solid #e6e6e6;
-            border-radius: 6px;
-            background: #fff
+        .page-header {
+            background: linear-gradient(135deg, var(--orange-primary), var(--orange-secondary));
+            color: white;
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(255, 107, 53, 0.2);
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(255, 107, 53, 0.1);
+        }
+
+        .controls-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(255, 107, 53, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .btn-orange {
+            background: linear-gradient(45deg, var(--orange-primary), var(--orange-secondary));
+            border: none;
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .btn-orange:hover {
+            background: linear-gradient(45deg, var(--orange-dark), var(--orange-primary));
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 53, 0.3);
+            color: white;
+        }
+
+        .form-control:focus {
+            border-color: var(--orange-primary);
+            box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.25);
         }
 
         canvas {
@@ -39,80 +81,186 @@ require_role('admin');
 </head>
 
 <body>
-    <header>
-        <h1>Estadísticas</h1>
+    <div class="container-fluid py-4">
         <?php $active = 'stats';
         require __DIR__ . '/_admin_nav.php'; ?>
-    </header>
 
-    <main>
-        <section>
-            <div class="controls">
-                <label>Desde <input type="date" id="date_from"></label>
-                <label>Hasta <input type="date" id="date_to"></label>
-                <button id="loadBtn">Cargar</button>
-                <div id="status" style="margin-left:12px;color:#666"></div>
-            </div>
+        <div class="page-header text-center">
+            <h1 class="mb-2">
+                <i class="bi bi-bar-chart"></i> Estadísticas y Análisis
+            </h1>
+            <p class="mb-0 opacity-75">Dashboard completo de métricas de negocio</p>
+        </div>
 
-            <div id="revenue-summary" class="card">Cargando resumen...</div>
-
-            <div class="grid" style="margin-top:12px">
-                <div class="card">
-                    <h4>Ventas por día</h4>
-                    <canvas id="chart-sales-by-day"></canvas>
+        <div class="controls-card">
+            <div class="row align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">
+                        <i class="bi bi-calendar"></i> Fecha desde
+                    </label>
+                    <input type="date" class="form-control" id="date_from">
                 </div>
-                <div class="card">
-                    <h4>Usuarios nuevos por día</h4>
-                    <canvas id="chart-users-growth"></canvas>
+                <div class="col-md-3">
+                    <label class="form-label">
+                        <i class="bi bi-calendar"></i> Fecha hasta
+                    </label>
+                    <input type="date" class="form-control" id="date_to">
                 </div>
-
-                <div class="card">
-                    <h4>Ventas por vendedor</h4>
-                    <canvas id="chart-sales-by-seller"></canvas>
+                <div class="col-md-3">
+                    <button id="loadBtn" class="btn btn-orange btn-lg">
+                        <i class="bi bi-arrow-clockwise"></i> Cargar Datos
+                    </button>
                 </div>
-                <div class="card">
-                    <h4>Top productos</h4>
-                    <canvas id="chart-top-products"></canvas>
-                </div>
-
-                <div class="card">
-                    <h4>Pedidos por estado</h4>
-                    <canvas id="chart-orders-by-status"></canvas>
-                </div>
-                <div class="card">
-                    <h4>Orders period (serie)</h4>
-                    <canvas id="chart-orders-period"></canvas>
-                    <div id="orders-period-metrics" style="margin-top:8px;color:#333;font-size:0.95em"></div>
+                <div class="col-md-3">
+                    <div id="status" class="text-muted small">
+                        <i class="bi bi-info-circle"></i> Listo para cargar
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <div style="margin-top:16px" class="card" id="rates-card">
-                <h4>Tasas</h4>
+        <div class="card chart-card mb-4">
+            <div class="card-header bg-transparent">
+                <h5 class="mb-0">
+                    <i class="bi bi-cash-stack text-orange"></i> Resumen de Ingresos
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="revenue-summary">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-orange" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Cargando resumen...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card chart-card">
+                    <div class="card-header bg-transparent">
+                        <h5 class="mb-0">
+                            <i class="bi bi-graph-up text-orange"></i> Ventas por día
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chart-sales-by-day"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card chart-card">
+                    <div class="card-header bg-transparent">
+                        <h5 class="mb-0">
+                            <i class="bi bi-person-plus text-orange"></i> Usuarios nuevos por día
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chart-users-growth"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card chart-card">
+                    <div class="card-header bg-transparent">
+                        <h5 class="mb-0">
+                            <i class="bi bi-shop text-orange"></i> Ventas por vendedor
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chart-sales-by-seller"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card chart-card">
+                    <div class="card-header bg-transparent">
+                        <h5 class="mb-0">
+                            <i class="bi bi-star text-orange"></i> Top productos
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chart-top-products"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card chart-card">
+                    <div class="card-header bg-transparent">
+                        <h5 class="mb-0">
+                            <i class="bi bi-pie-chart text-orange"></i> Pedidos por estado
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chart-orders-by-status"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card chart-card">
+                    <div class="card-header bg-transparent">
+                        <h5 class="mb-0">
+                            <i class="bi bi-calendar-event text-orange"></i> Cantidad de pedidos por días
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chart-orders-period"></canvas>
+                        <div id="orders-period-metrics" class="mt-3 p-2 bg-light rounded small"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card chart-card mt-4">
+            <div class="card-header bg-transparent">
+                <h5 class="mb-0">
+                    <i class="bi bi-percent text-orange"></i> Tasas de Conversión
+                </h5>
+            </div>
+            <div class="card-body">
                 <canvas id="chart-rates" style="height:220px"></canvas>
             </div>
+        </div>
 
-            <div style="margin-top:16px" class="card" id="revenue-by-segment">
-                <h4>Desglose de ingresos</h4>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                    <div>
-                        <h5>Por vendedor</h5><canvas id="chart-revenue-by-seller" style="height:220px"></canvas>
+        <div class="card chart-card mt-4">
+            <div class="card-header bg-transparent">
+                <h5 class="mb-0">
+                    <i class="bi bi-currency-dollar text-orange"></i> Desglose de Ingresos
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <h6>Por vendedor</h6>
+                        <canvas id="chart-revenue-by-seller" style="height:220px"></canvas>
                     </div>
-                    <div>
-                        <h5>Por canal</h5><canvas id="chart-revenue-by-channel" style="height:220px"></canvas>
+                    <div class="col-md-6">
+                        <h6>Por canal</h6>
+                        <canvas id="chart-revenue-by-channel" style="height:220px"></canvas>
                     </div>
                 </div>
-                <div style="margin-top:12px">
-                    <h5>Por categoría</h5><canvas id="chart-revenue-by-category" style="height:220px"></canvas>
+                <div class="mt-4">
+                    <h6>Por categoría</h6>
+                    <canvas id="chart-revenue-by-category" style="height:220px"></canvas>
                 </div>
             </div>
+        </div>
 
-            <div style="margin-top:16px" class="card" id="top-clients">
-                <h4>Top clientes</h4>
+        <div class="card chart-card mt-4">
+            <div class="card-header bg-transparent">
+                <h5 class="mb-0">
+                    <i class="bi bi-trophy text-orange"></i> Top Clientes
+                </h5>
+            </div>
+            <div class="card-body">
                 <canvas id="chart-top-clients" style="height:240px"></canvas>
             </div>
-        </section>
-    </main>
+        </div>
+    </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/Sabores360/assets/js/common.js"></script>
     <script>

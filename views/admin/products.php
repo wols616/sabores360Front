@@ -8,63 +8,154 @@ require_role('admin');
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Admin - Productos</title>
+    <title>Admin - Productos | Sabores360</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/Sabores360/assets/css/styles.css">
     <style>
-        /* tiny defaults so UI isn't raw */
-        .cards {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 12px
+        :root {
+            --orange-primary: #ff6b35;
+            --orange-secondary: #ff8c42;
+            --orange-light: #ffad73;
+            --orange-dark: #e55a2b;
+            --orange-bg: #fff4f0;
         }
 
-        .card {
-            background: #f6f6f6;
-            padding: 12px;
-            border-radius: 6px;
-            flex: 1
+        body {
+            background: linear-gradient(135deg, var(--orange-bg) 0%, #feeee7 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        .big {
-            font-size: 1.5rem
+        .page-header {
+            background: linear-gradient(135deg, var(--orange-primary), var(--orange-secondary));
+            color: white;
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(255, 107, 53, 0.2);
         }
 
-        .table {
+        .product-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(255, 107, 53, 0.1);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(255, 107, 53, 0.2);
+        }
+
+        .product-image {
             width: 100%;
-            border-collapse: collapse
+            height: 200px;
+            object-fit: cover;
+            border-bottom: 2px solid var(--orange-bg);
         }
 
-        .table th,
-        .table td {
-            border: 1px solid #ddd;
-            padding: 6px
+        .btn-orange {
+            background: linear-gradient(45deg, var(--orange-primary), var(--orange-secondary));
+            border: none;
+            color: white;
+            transition: all 0.3s ease;
         }
 
-        #product-list .product-item {
-            padding: 8px;
-            border-bottom: 1px solid #eee
+        .btn-orange:hover {
+            background: linear-gradient(45deg, var(--orange-dark), var(--orange-primary));
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 53, 0.3);
+            color: white;
         }
 
-        #product-modal {
-            display: none
+        .btn-outline-orange {
+            border: 2px solid var(--orange-primary);
+            color: var(--orange-primary);
+            background: transparent;
+            transition: all 0.3s ease;
+        }
+
+        .btn-outline-orange:hover {
+            background: var(--orange-primary);
+            border-color: var(--orange-primary);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .badge-available {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .badge-unavailable {
+            background: linear-gradient(45deg, #dc3545, #fd7e14);
+            color: white;
+        }
+
+        .modal-content {
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(255, 107, 53, 0.2);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--orange-primary), var(--orange-secondary));
+            color: white;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .form-control:focus {
+            border-color: var(--orange-primary);
+            box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.25);
+        }
+
+        .form-select:focus {
+            border-color: var(--orange-primary);
+            box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.25);
         }
     </style>
 </head>
 
 <body>
-    <header>
-        <h1>Productos (Administrador)</h1>
+    <div class="container-fluid py-4">
         <?php $active = 'products';
         require __DIR__ . '/_admin_nav.php'; ?>
-    </header>
-    <main>
-        <section>
-            <h2>Lista de productos</h2>
-            <div><button id="new-product">Agregar producto</button></div>
-            <div id="product-list">Cargando...</div>
-        </section>
-    </main>
 
+        <div class="page-header text-center">
+            <h1 class="mb-2">
+                <i class="bi bi-box-seam"></i> Gestión de Productos
+            </h1>
+            <p class="mb-0 opacity-75">Administra el catálogo de productos</p>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h3 class="text-dark">
+                        <i class="bi bi-grid"></i> Productos Disponibles
+                    </h3>
+                    <button id="new-product" class="btn btn-orange btn-lg">
+                        <i class="bi bi-plus-circle"></i> Agregar Producto
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="product-list" class="row">
+            <div class="col-12 text-center py-5">
+                <div class="spinner-border text-orange" role="status">
+                    <span class="visually-hidden">Cargando productos...</span>
+                </div>
+                <p class="mt-3 text-muted">Cargando productos...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/Sabores360/assets/js/common.js"></script>
     <script>
         (async function () {
@@ -83,22 +174,73 @@ require_role('admin');
             }
 
             function renderProducts() {
-                if (!products || !products.length) { container.textContent = 'No hay productos.'; return; }
+                if (!products || !products.length) {
+                    container.innerHTML = `
+                        <div class="col-12 text-center py-5">
+                            <i class="bi bi-box display-1 text-muted opacity-50"></i>
+                            <h4 class="text-muted mt-3">No hay productos</h4>
+                            <p class="text-muted">Comienza agregando tu primer producto</p>
+                        </div>
+                    `;
+                    return;
+                }
+
                 container.innerHTML = '';
                 products.forEach(p => {
                     const name = p.name || p.title || '';
                     const price = p.price || p.cost || '';
+                    const description = p.description || p.desc || '';
+                    const stock = p.stock || 0;
                     const available = (typeof p.is_available !== 'undefined') ? p.is_available : (typeof p.stock !== 'undefined' ? (p.stock > 0) : true);
                     const rawImg = p.imageUrl || p.image_url || p.image;
                     const imgSrc = normalizeImageUrl(rawImg);
                     const placeholder = '/Sabores360/assets/img/no-image.svg';
-                    const imgHtml = `<img src="${imgSrc ? imgSrc : placeholder}" onerror="this.onerror=null;this.src='${placeholder}';" style="max-width:120px;display:block;margin-bottom:6px;">`;
-                    const el = document.createElement('div');
-                    el.className = 'product-item';
-                    el.innerHTML = `${imgHtml}<strong>${name}</strong> - ${price} - ${available ? 'Disponible' : 'No disponible'}<br>
-                        <button class="edit" data-id="${p.id}">Editar</button>
-                        <button class="delete" data-id="${p.id}">Eliminar</button>`;
-                    container.appendChild(el);
+
+                    const availableBadge = available ?
+                        '<span class="badge badge-available"><i class="bi bi-check-circle"></i> Disponible</span>' :
+                        '<span class="badge badge-unavailable"><i class="bi bi-x-circle"></i> No disponible</span>';
+
+                    const stockBadge = stock <= 5 ?
+                        `<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Stock: ${stock}</span>` :
+                        `<span class="badge bg-success"><i class="bi bi-check2"></i> Stock: ${stock}</span>`;
+
+                    const col = document.createElement('div');
+                    col.className = 'col-xl-3 col-lg-4 col-md-6 mb-4';
+
+                    col.innerHTML = `
+                        <div class="card product-card h-100">
+                            <img src="${imgSrc || placeholder}" 
+                                 onerror="this.onerror=null;this.src='${placeholder}';" 
+                                 class="product-image" 
+                                 alt="${name}">
+                            <div class="card-body d-flex flex-column">
+                                <h5 class="card-title text-truncate" title="${name}">
+                                    <i class="bi bi-tag text-orange"></i> ${name}
+                                </h5>
+                                <p class="card-text text-muted small flex-grow-1" style="height: 60px; overflow: hidden;">
+                                    ${description || 'Sin descripción'}
+                                </p>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h4 class="text-orange mb-0">$${price}</h4>
+                                        ${stockBadge}
+                                    </div>
+                                    ${availableBadge}
+                                </div>
+                                <div class="mt-auto">
+                                    <div class="d-grid gap-2">
+                                        <button class="btn btn-outline-orange edit" data-id="${p.id}">
+                                            <i class="bi bi-pencil"></i> Editar
+                                        </button>
+                                        <button class="btn btn-outline-danger delete" data-id="${p.id}">
+                                            <i class="bi bi-trash"></i> Eliminar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(col);
                 });
             }
 
@@ -119,29 +261,94 @@ require_role('admin');
                 } catch (err) { container.textContent = 'Error al cargar productos.'; }
             }
 
-            // PRODUCT MODAL (simple)
+            // PRODUCT MODAL (Bootstrap styled)
             const modalHtml = `
-                <div id="product-modal" style="display:none;position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
-                  <div style="background:#fff;padding:16px;max-width:600px;width:90%;box-shadow:0 4px 12px rgba(0,0,0,0.2);">
-                    <h3 id="modal-title">Nuevo producto</h3>
-                    <form id="product-form">
-                      <input type="hidden" name="id" />
-                      <div><label>Nombre<br><input name="name" required></label></div>
-                      <div><label>Precio<br><input name="price" type="number" step="0.01" required></label></div>
-                      <div><label>Descripción<br><textarea name="description"></textarea></label></div>
-                      <div><label>Stock<br><input name="stock" type="number" value="0"></label></div>
-                      <div><label>Disponible <input name="isAvailable" type="checkbox" value="1"></label></div>
-                      <div><label>Categoría<br><select name="categoryId"><option value="">Cargando categorías...</option></select></label></div>
-                      <div><label>Imagen (URL)<br><input name="imageUrl" type="url" placeholder="https://..."></label></div>
-                      <div style="margin-top:8px;"><button type="submit">Guardar</button> <button type="button" id="modal-cancel">Cancelar</button></div>
-                    </form>
+                <div class="modal fade" id="product-modal" tabindex="-1" aria-labelledby="modalTitle" aria-hidden="true">
+                  <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title" id="modal-title">
+                            <i class="bi bi-plus-circle"></i> Nuevo producto
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <form id="product-form">
+                        <div class="modal-body">
+                          <input type="hidden" name="id" />
+                          
+                          <div class="row">
+                            <div class="col-md-8 mb-3">
+                              <label class="form-label">
+                                <i class="bi bi-tag"></i> Nombre del producto
+                              </label>
+                              <input name="name" class="form-control form-control-lg" required placeholder="Ej: Pizza Margherita">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                              <label class="form-label">
+                                <i class="bi bi-currency-dollar"></i> Precio
+                              </label>
+                              <input name="price" type="number" step="0.01" class="form-control form-control-lg" required placeholder="0.00">
+                            </div>
+                          </div>
+                          
+                          <div class="mb-3">
+                            <label class="form-label">
+                              <i class="bi bi-text-paragraph"></i> Descripción
+                            </label>
+                            <textarea name="description" class="form-control" rows="3" placeholder="Describe el producto..."></textarea>
+                          </div>
+                          
+                          <div class="row">
+                            <div class="col-md-4 mb-3">
+                              <label class="form-label">
+                                <i class="bi bi-boxes"></i> Stock
+                              </label>
+                              <input name="stock" type="number" class="form-control" value="0" min="0">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                              <label class="form-label">
+                                <i class="bi bi-list-ul"></i> Categoría
+                              </label>
+                              <select name="categoryId" class="form-select" required>
+                                <option value="">Cargando categorías...</option>
+                              </select>
+                            </div>
+                            <div class="col-md-4 mb-3 d-flex align-items-end">
+                              <div class="form-check form-switch">
+                                <input name="isAvailable" class="form-check-input" type="checkbox" value="1" id="availableSwitch">
+                                <label class="form-check-label" for="availableSwitch">
+                                  <i class="bi bi-check-circle"></i> Disponible
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div class="mb-3">
+                            <label class="form-label">
+                              <i class="bi bi-image"></i> URL de imagen
+                            </label>
+                            <input name="imageUrl" type="url" class="form-control" placeholder="https://ejemplo.com/imagen.jpg">
+                            <div class="form-text">Ingresa la URL completa de la imagen del producto</div>
+                          </div>
+                        </div>
+                        
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                          </button>
+                          <button type="submit" class="btn btn-orange">
+                            <i class="bi bi-check-circle"></i> Guardar Producto
+                          </button>
+                        </div>
+                      </form>
+                    </div>
                   </div>
                 </div>`;
             document.body.insertAdjacentHTML('beforeend', modalHtml);
-            const modal = document.getElementById('product-modal');
+            const modal = new bootstrap.Modal(document.getElementById('product-modal'));
+            const modalElement = document.getElementById('product-modal');
             const form = document.getElementById('product-form');
             const modalTitle = document.getElementById('modal-title');
-            const modalCancel = document.getElementById('modal-cancel');
 
             // categories cache
             let categories = [];
@@ -227,14 +434,16 @@ require_role('admin');
                     }
                     if (imgEl) imgEl.value = prod && (prod.imageUrl || prod.image_url || prod.image) ? (prod.imageUrl || prod.image_url || prod.image) : '';
 
-                    modalTitle.textContent = prod && prod.id ? 'Editar producto' : 'Nuevo producto';
-                    modal.style.display = 'flex';
+                    modalTitle.innerHTML = prod && prod.id ?
+                        '<i class="bi bi-pencil"></i> Editar producto' :
+                        '<i class="bi bi-plus-circle"></i> Nuevo producto';
+                    modal.show();
                 } catch (err) {
                     console.error('Error opening product modal', err);
                 }
             }
 
-            modalCancel.addEventListener('click', () => { modal.style.display = 'none'; });
+            // Modal close handled by Bootstrap
 
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -272,7 +481,7 @@ require_role('admin');
                         res = await (window.SABORES360 && SABORES360.API ? SABORES360.API.post('admin/products', payload) : (async () => { const r = await fetch(base + 'admin/products', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const t = await r.text(); try { return JSON.parse(t); } catch (e) { return { success: r.ok, raw: t } } })());
                     }
                     if (res && res.success) {
-                        modal.style.display = 'none';
+                        modal.hide();
                         await fetchProducts();
                     } else {
                         alert(res && res.message ? res.message : 'Error al guardar');

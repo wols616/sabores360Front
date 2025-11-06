@@ -8,25 +8,146 @@ require_role('admin');
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Admin - Usuarios</title>
+    <title>Admin - Usuarios | Sabores360</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/Sabores360/assets/css/styles.css">
+    <style>
+        :root {
+            --orange-primary: #ff6b35;
+            --orange-secondary: #ff8c42;
+            --orange-light: #ffad73;
+            --orange-dark: #e55a2b;
+            --orange-bg: #fff4f0;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--orange-bg) 0%, #feeee7 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, var(--orange-primary), var(--orange-secondary));
+            color: white;
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(255, 107, 53, 0.2);
+        }
+
+        .users-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(255, 107, 53, 0.1);
+        }
+
+        .user-card {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(255, 107, 53, 0.1);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+        }
+
+        .user-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(255, 107, 53, 0.15);
+            border-color: var(--orange-primary);
+        }
+
+        .btn-orange {
+            background: linear-gradient(45deg, var(--orange-primary), var(--orange-secondary));
+            border: none;
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .btn-orange:hover {
+            background: linear-gradient(45deg, var(--orange-dark), var(--orange-primary));
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 53, 0.3);
+            color: white;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--orange-primary);
+            box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.25);
+        }
+
+        .text-orange {
+            color: var(--orange-primary) !important;
+        }
+
+        .role-badge {
+            font-size: 0.75rem;
+            padding: 0.35rem 0.65rem;
+        }
+
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.35rem 0.65rem;
+        }
+
+        .btn-action {
+            padding: 0.4rem 0.8rem;
+            margin: 0.2rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+
+        .modal-content {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            background: linear-gradient(45deg, var(--orange-primary), var(--orange-secondary));
+            color: white;
+            border-radius: 15px 15px 0 0;
+        }
+    </style>
 </head>
 
 <body>
-    <header>
-        <h1>Usuarios (Administrador)</h1>
+    <div class="container-fluid py-4">
         <?php $active = 'users';
         require __DIR__ . '/_admin_nav.php'; ?>
-    </header>
 
-    <main>
-        <section>
-            <h2>Listado de usuarios</h2>
-            <div class="toolbar"><button id="new-user">Agregar usuario</button></div>
-            <div id="users-list">Cargando...</div>
-        </section>
-    </main>
+        <div class="page-header text-center">
+            <h1 class="mb-2">
+                <i class="bi bi-people"></i> Gestión de Usuarios
+            </h1>
+            <p class="mb-0 opacity-75">Administra los usuarios del sistema</p>
+        </div>
 
+        <div class="card users-card">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-person-lines-fill text-orange"></i> Lista de Usuarios
+                </h5>
+                <button id="new-user" class="btn btn-orange">
+                    <i class="bi bi-person-plus"></i> Nuevo Usuario
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="users-list">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-orange" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-3 text-muted">Cargando usuarios...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/Sabores360/assets/js/common.js"></script>
     <script>
         (async function () {
@@ -36,17 +157,64 @@ require_role('admin');
             let roles = [];
 
             function renderUsers() {
-                if (!users || !users.length) { container.innerHTML = '<div>No hay usuarios.</div>'; return; }
-                const rows = users.map(u => {
+                if (!users || !users.length) {
+                    container.innerHTML = `
+                        <div class="text-center py-5">
+                            <i class="bi bi-person-x display-4 text-muted"></i>
+                            <p class="mt-3 text-muted">No hay usuarios registrados</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const userCards = users.map(u => {
                     const id = u.id || u.userId || '';
                     const name = u.name || u.fullName || u.username || '';
                     const email = u.email || '';
                     const roleLabel = (u.role && (u.role.name || u.role.label)) || u.role_name || u.role || '';
                     const active = (typeof u.isActive !== 'undefined') ? u.isActive : (typeof u.active !== 'undefined' ? u.active : true);
-                    const actions = `<button class="edit" data-id="${id}">Editar</button> <button class="toggle" data-id="${id}">${active ? 'Desactivar' : 'Activar'}</button>`;
-                    return `<div class="user-item" data-id="${id}"><strong>#${id} ${name}</strong> - ${email} - ${roleLabel} - ${active ? 'Activo' : 'Inactivo'} - ${actions}</div>`;
+
+                    // Role badge color
+                    const roleColor = roleLabel.toLowerCase() === 'admin' ? 'danger' :
+                        roleLabel.toLowerCase() === 'vendedor' ? 'warning' : 'primary';
+
+                    return `
+                        <div class="user-card p-3" data-id="${id}">
+                            <div class="row align-items-center">
+                                <div class="col-md-1">
+                                    <div class="text-center">
+                                        <i class="bi bi-person-circle display-6 text-orange"></i>
+                                        <small class="badge bg-secondary d-block mt-1">#${id}</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-7">
+                                    <h6 class="mb-1 fw-bold">${name}</h6>
+                                    <p class="mb-1 text-muted">
+                                        <i class="bi bi-envelope"></i> ${email}
+                                    </p>
+                                    <div class="d-flex gap-2 align-items-center">
+                                        <span class="badge bg-${roleColor} role-badge">
+                                            <i class="bi bi-shield"></i> ${roleLabel}
+                                        </span>
+                                        <span class="badge ${active ? 'bg-success' : 'bg-secondary'} status-badge">
+                                            <i class="bi bi-${active ? 'check-circle' : 'x-circle'}"></i> ${active ? 'Activo' : 'Inactivo'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <button class="btn btn-sm btn-outline-primary btn-action edit" data-id="${id}" title="Editar usuario">
+                                        <i class="bi bi-pencil"></i> Editar
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-${active ? 'warning' : 'success'} btn-action toggle" data-id="${id}" title="${active ? 'Desactivar' : 'Activar'} usuario">
+                                        <i class="bi bi-${active ? 'pause' : 'play'}"></i> ${active ? 'Desactivar' : 'Activar'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
                 }).join('');
-                container.innerHTML = rows;
+
+                container.innerHTML = userCards;
             }
 
             async function loadRoles() {
@@ -79,26 +247,79 @@ require_role('admin');
 
             // user modal
             const modalHtml = `
-            <div id="user-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);align-items:center;justify-content:center;">
-              <div style="background:#fff;padding:16px;max-width:560px;margin:48px auto;">
-                <h3 id="user-title">Nuevo usuario</h3>
-                <form id="user-form">
-                  <input type="hidden" name="id">
-                  <div><label>Nombre<br><input name="name" required></label></div>
-                  <div><label>Email<br><input name="email" type="email" required></label></div>
-                  <div><label>Contraseña<br><input name="password" type="password"></label></div>
-                  <div><label>Dirección<br><input name="address" type="text"></label></div>
-                  <div><label>Rol<br><select name="roleId"><option value="">Cargando roles...</option></select></label></div>
-                  <div><label>Activo <input name="isActive" type="checkbox"></label></div>
-                  <div style="margin-top:8px;"><button type="submit">Guardar</button> <button type="button" id="user-cancel">Cancelar</button></div>
-                </form>
-              </div>
+            <div class="modal fade" id="user-modal" tabindex="-1" aria-labelledby="user-title" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="user-title">
+                                <i class="bi bi-person-plus"></i> Nuevo usuario
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="user-form">
+                                <input type="hidden" name="id">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">
+                                            <i class="bi bi-person"></i> Nombre completo
+                                        </label>
+                                        <input name="name" class="form-control" required placeholder="Nombre y apellidos">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">
+                                            <i class="bi bi-envelope"></i> Email
+                                        </label>
+                                        <input name="email" type="email" class="form-control" required placeholder="correo@ejemplo.com">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">
+                                            <i class="bi bi-key"></i> Contraseña
+                                        </label>
+                                        <input name="password" type="password" class="form-control" placeholder="Dejar vacío para mantener actual">
+                                        <div class="form-text">Mínimo 6 caracteres</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">
+                                            <i class="bi bi-shield-check"></i> Rol
+                                        </label>
+                                        <select name="roleId" class="form-select">
+                                            <option value="">Seleccionar rol...</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label">
+                                            <i class="bi bi-geo-alt"></i> Dirección
+                                        </label>
+                                        <input name="address" class="form-control" placeholder="Dirección completa (opcional)">
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check form-switch">
+                                            <input name="isActive" type="checkbox" class="form-check-input" id="isActiveSwitch">
+                                            <label class="form-check-label" for="isActiveSwitch">
+                                                <i class="bi bi-toggle-on"></i> Usuario activo
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </button>
+                            <button type="submit" form="user-form" class="btn btn-orange">
+                                <i class="bi bi-check-circle"></i> Guardar Usuario
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>`;
             document.body.insertAdjacentHTML('beforeend', modalHtml);
-            const modal = document.getElementById('user-modal');
+            const modal = new bootstrap.Modal(document.getElementById('user-modal'));
+            const modalElement = document.getElementById('user-modal');
             const form = document.getElementById('user-form');
             const title = document.getElementById('user-title');
-            const cancel = document.getElementById('user-cancel');
 
             function fillRoleOptions() {
                 const sel = form.querySelector('[name="roleId"]');
@@ -135,11 +356,9 @@ require_role('admin');
                     }
                     activeEl.checked = activeFlag;
                 }
-                title.textContent = u && u.id ? 'Editar usuario' : 'Nuevo usuario';
-                modal.style.display = 'flex';
+                title.innerHTML = u && u.id ? '<i class="bi bi-pencil"></i> Editar usuario' : '<i class="bi bi-person-plus"></i> Nuevo usuario';
+                modal.show();
             }
-
-            cancel.addEventListener('click', () => modal.style.display = 'none');
 
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -177,9 +396,51 @@ require_role('admin');
                     } else {
                         res = await (window.SABORES360 && SABORES360.API ? SABORES360.API.put(`admin/users/${id}`, payload) : (async () => { const r = await fetch(base + `admin/users/${id}`, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const t = await r.text(); try { return JSON.parse(t); } catch (e) { return { success: r.ok, raw: t } } })());
                     }
-                    if (res && res.success) { modal.style.display = 'none'; await loadUsers(); }
-                    else { console.error('User API error', res); alert(res && (res.message || res.error || res.raw) ? (res.message || res.error || JSON.stringify(res.raw || res)) : 'Error en servidor'); }
-                } catch (err) { console.error('User request failed', err); alert('Error en la petición: ' + (err && err.message ? err.message : String(err))); }
+                    if (res && res.success) {
+                        modal.hide();
+                        await loadUsers();
+                        // Show success toast
+                        const toast = document.createElement('div');
+                        toast.className = 'toast align-items-center text-white bg-success border-0 position-fixed top-0 end-0 m-3';
+                        toast.innerHTML = `
+                            <div class="d-flex">
+                                <div class="toast-body">
+                                    <i class="bi bi-check-circle"></i> Usuario ${id ? 'actualizado' : 'creado'} exitosamente
+                                </div>
+                                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                            </div>
+                        `;
+                        document.body.appendChild(toast);
+                        const bsToast = new bootstrap.Toast(toast);
+                        bsToast.show();
+                        setTimeout(() => toast.remove(), 5000);
+                    }
+                    else {
+                        console.error('User API error', res);
+                        const msg = res && (res.message || res.error || res.raw) ? (res.message || res.error || JSON.stringify(res.raw || res)) : 'Error en servidor';
+                        // Show error using Bootstrap alert
+                        const alertDiv = modalElement.querySelector('.modal-body');
+                        const existingAlert = alertDiv.querySelector('.alert');
+                        if (existingAlert) existingAlert.remove();
+                        alertDiv.insertAdjacentHTML('afterbegin', `
+                            <div class="alert alert-danger alert-dismissible fade show">
+                                <i class="bi bi-exclamation-triangle"></i> ${msg}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        `);
+                    }
+                } catch (err) {
+                    console.error('User request failed', err);
+                    const alertDiv = modalElement.querySelector('.modal-body');
+                    const existingAlert = alertDiv.querySelector('.alert');
+                    if (existingAlert) existingAlert.remove();
+                    alertDiv.insertAdjacentHTML('afterbegin', `
+                        <div class="alert alert-danger alert-dismissible fade show">
+                            <i class="bi bi-exclamation-triangle"></i> Error en la petición: ${err && err.message ? err.message : String(err)}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    `);
+                }
             });
 
             // delegate actions
@@ -195,12 +456,74 @@ require_role('admin');
                     if (!u) return;
                     const active = (typeof u.isActive !== 'undefined') ? u.isActive : (typeof u.active !== 'undefined' ? u.active : true);
                     const newStatus = active ? 'inactive' : 'active';
-                    if (!confirm(`${active ? 'Desactivar' : 'Activar'} usuario #${id}?`)) return;
-                    try {
-                        const body = { status: newStatus };
-                        const res = await (window.SABORES360 && SABORES360.API ? SABORES360.API.post(`admin/users/${id}/status`, body) : (async () => { const r = await fetch(base + `admin/users/${id}/status`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const t = await r.text(); try { return JSON.parse(t); } catch (e) { return { success: r.ok, raw: t } } })());
-                        if (res && res.success) await loadUsers(); else { console.error('Status API error', res); alert('No se pudo cambiar estado'); }
-                    } catch (err) { console.error('Status request failed', err); alert('Error al cambiar estado'); }
+                    const userName = u.name || `Usuario #${id}`;
+
+                    // Create confirmation modal
+                    const confirmModal = document.createElement('div');
+                    confirmModal.className = 'modal fade';
+                    confirmModal.innerHTML = `
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header bg-${active ? 'warning' : 'success'} text-white">
+                                    <h5 class="modal-title">
+                                        <i class="bi bi-${active ? 'pause-circle' : 'play-circle'}"></i> ${active ? 'Desactivar' : 'Activar'} Usuario
+                                    </h5>
+                                </div>
+                                <div class="modal-body">
+                                    <p>¿Estás seguro de que deseas <strong>${active ? 'desactivar' : 'activar'}</strong> al usuario <strong>"${userName}"</strong>?</p>
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-info-circle"></i> ${active ? 'El usuario no podrá acceder al sistema.' : 'El usuario recuperará el acceso al sistema.'}
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="button" class="btn btn-${active ? 'warning' : 'success'}" id="confirm-toggle">
+                                        <i class="bi bi-${active ? 'pause' : 'play'}"></i> ${active ? 'Desactivar' : 'Activar'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(confirmModal);
+                    const bsModal = new bootstrap.Modal(confirmModal);
+                    bsModal.show();
+
+                    confirmModal.querySelector('#confirm-toggle').onclick = async () => {
+                        try {
+                            const body = { status: newStatus };
+                            const res = await (window.SABORES360 && SABORES360.API ? SABORES360.API.post(`admin/users/${id}/status`, body) : (async () => { const r = await fetch(base + `admin/users/${id}/status`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const t = await r.text(); try { return JSON.parse(t); } catch (e) { return { success: r.ok, raw: t } } })());
+                            if (res && res.success) {
+                                bsModal.hide();
+                                await loadUsers();
+                                // Show success toast
+                                const toast = document.createElement('div');
+                                toast.className = 'toast align-items-center text-white bg-success border-0 position-fixed top-0 end-0 m-3';
+                                toast.innerHTML = `
+                                    <div class="d-flex">
+                                        <div class="toast-body">
+                                            <i class="bi bi-check-circle"></i> Usuario ${active ? 'desactivado' : 'activado'} exitosamente
+                                        </div>
+                                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                                    </div>
+                                `;
+                                document.body.appendChild(toast);
+                                const bsToast = new bootstrap.Toast(toast);
+                                bsToast.show();
+                                setTimeout(() => toast.remove(), 5000);
+                            } else {
+                                console.error('Status API error', res);
+                                alert('No se pudo cambiar estado');
+                            }
+                        } catch (err) {
+                            console.error('Status request failed', err);
+                            alert('Error al cambiar estado');
+                        }
+                        confirmModal.remove();
+                    };
+
+                    confirmModal.addEventListener('hidden.bs.modal', () => {
+                        confirmModal.remove();
+                    });
                 }
             });
 
