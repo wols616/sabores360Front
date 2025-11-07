@@ -365,8 +365,7 @@ require_auth();
 
         function getAuthToken() {
             try { if (window.SABORES360 && (SABORES360.AUTH_TOKEN || SABORES360.token)) return SABORES360.AUTH_TOKEN || SABORES360.token; } catch (e) { }
-            const fromLocal = localStorage.getItem('auth_token');
-            if (fromLocal) return fromLocal;
+            // Do NOT read token from localStorage; prefer cookie-based token
             return getCookie('auth_token');
         }
 

@@ -159,7 +159,7 @@
             const data = Object.fromEntries(formData);
 
             try {
-                const response = await SABORES360.API.post('/api/auth/register', data);
+                const response = await SABORES360.API.post('auth/register', data);
                 if (response.success) {
                     await Swal.fire({
                         icon: 'success',

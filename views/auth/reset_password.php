@@ -221,7 +221,7 @@ require __DIR__ . '/../../includes/auth_check.php';
             const data = { token, password };
 
             try {
-                const response = await SABORES360.API.post('/api/auth/reset-password', data);
+                const response = await SABORES360.API.post('auth/reset-password', data);
                 if (response.success) {
                     await Swal.fire({
                         icon: 'success',

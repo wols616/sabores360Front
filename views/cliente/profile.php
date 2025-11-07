@@ -355,13 +355,13 @@ require_auth();
             return match ? match.pop() : '';
         }
 
-        // Try to find an auth token from multiple places (SABORES360 helper, localStorage, cookie)
+        // Try to find an auth token from multiple places (SABORES360 helper, cookie)
+        // NOTE: Do NOT use localStorage for auth_token (security / session consistency).
         function getAuthToken() {
             try {
                 if (window.SABORES360 && (SABORES360.AUTH_TOKEN || SABORES360.token)) return SABORES360.AUTH_TOKEN || SABORES360.token;
             } catch (e) { }
-            const fromLocal = localStorage.getItem('auth_token');
-            if (fromLocal) return fromLocal;
+            // Prefer cookie-based token
             return getCookie('auth_token');
         }
 

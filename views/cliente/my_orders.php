@@ -591,6 +591,47 @@ require_auth();
             });
         }
 
+        // Merge server-returned items into localStorage cart (same shape used elsewhere)
+        function mergeItemsToCart(items) {
+            if (!items || !Array.isArray(items)) return 0;
+
+            try {
+                const key = 'sabores360_cart';
+                let store = [];
+                try { store = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) { store = []; }
+
+                let addedCount = 0;
+
+                items.forEach(it => {
+                    // Normalize item fields from possible API shapes
+                    const id = parseInt(it.productId || it.product_id || it.id || it.product || 0, 10) || 0;
+                    const name = it.productName || it.product_name || it.name || it.title || 'Producto';
+                    const price = parseFloat(it.unitPrice || it.unit_price || it.price || it.unit_price || 0) || 0;
+                    const quantity = parseInt(it.quantity || it.qty || it.amount || 1, 10) || 1;
+                    const image = it.imageUrl || it.image_url || it.image || '';
+
+                    if (!id) return;
+
+                    const existing = store.find(s => parseInt(s.id, 10) === id);
+                    if (existing) {
+                        existing.quantity = (parseInt(existing.quantity, 10) || 0) + quantity;
+                    } else {
+                        store.push({ id, name, price, quantity, image: (image && image !== 'null') ? image : '' });
+                    }
+
+                    addedCount += quantity;
+                });
+
+                localStorage.setItem(key, JSON.stringify(store));
+                // trigger storage event for same-tab listeners
+                window.dispatchEvent(new Event('cartUpdated'));
+                return addedCount;
+            } catch (e) {
+                console.warn('mergeItemsToCart error', e);
+                return 0;
+            }
+        }
+
         async function fetchOrderDetails(orderId) {
             try {
                 const base = (window.SABORES360 && SABORES360.API_BASE) ? SABORES360.API_BASE : 'http://localhost:8080/api/';
@@ -897,10 +938,6 @@ require_auth();
                                 <i class="bi bi-eye"></i>
                                 Ver Detalles
                             </button>
-                            <button type="button" class="btn-reorder" data-id="${order.id}">
-                                <i class="bi bi-arrow-repeat"></i>
-                                Reordenar
-                            </button>
                         </div>
                     </div>
                 `;
@@ -1155,7 +1192,24 @@ require_auth();
                                 })());
 
                             if (d2 && d2.success) {
-                                // Show success message
+                                // Try to extract items returned by the API and merge them into local cart
+                                let addedCount = 0;
+                                let possibleItems = null;
+                                if (Array.isArray(d2.items)) possibleItems = d2.items;
+                                else if (d2.data && Array.isArray(d2.data.items)) possibleItems = d2.data.items;
+                                else if (Array.isArray(d2.products)) possibleItems = d2.products;
+                                else if (d2.addedItems && Array.isArray(d2.addedItems)) possibleItems = d2.addedItems;
+                                else if (d2.data && Array.isArray(d2.data.products)) possibleItems = d2.data.products;
+
+                                if (possibleItems) {
+                                    try {
+                                        addedCount = mergeItemsToCart(possibleItems);
+                                    } catch (e) {
+                                        console.warn('Error merging items from reorder response', e);
+                                    }
+                                }
+
+                                // Show success toast (mention number of items added if available)
                                 const toast = document.createElement('div');
                                 toast.className = 'toast-container position-fixed top-0 end-0 p-3';
                                 toast.innerHTML = `
@@ -1166,7 +1220,7 @@ require_auth();
                                             <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
                                         </div>
                                         <div class="toast-body">
-                                            Productos añadidos al carrito correctamente
+                                            ${addedCount > 0 ? `${addedCount} productos añadidos al carrito correctamente` : 'Productos añadidos al carrito correctamente'}
                                         </div>
                                     </div>
                                 `;
