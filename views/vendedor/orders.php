@@ -493,6 +493,8 @@ require_role('vendedor');
                         (findArrayOfObjectsWithId(d) || findArrayOfObjectsWithId(d && d.data) || null));
 
                 if (orders && Array.isArray(orders)) {
+                    // Default: show most recent orders first (id descending)
+                    orders.sort((a, b) => (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0));
                     allOrders = orders;
                     filteredOrders = [...orders];
 

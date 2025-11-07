@@ -1,6 +1,6 @@
 // Minimal SABORES360 common helpers
 window.SABORES360 = window.SABORES360 || {};
-SABORES360.API_BASE = "http://localhost:8080/api/"; // adjust if needed
+SABORES360.API_BASE = "http://localhost:8000/api/"; // adjust if needed
 
 // API Configuration Debug Helper
 SABORES360.Debug = {
@@ -32,6 +32,13 @@ SABORES360.Debug = {
       "color: black;",
       "color: green; font-weight: bold;"
     );
+    // Sync selection with server-side PHP via cookie so server-side auth checks use the same API base
+    try {
+      document.cookie =
+        "SABORES_API_BASE=" +
+        encodeURIComponent(SABORES360.API_BASE) +
+        "; path=/";
+    } catch (e) {}
     return SABORES360.API_BASE;
   },
 
@@ -191,6 +198,14 @@ document.addEventListener("click", function (e) {
 // Initialize API indicator when DOM is ready
 document.addEventListener("DOMContentLoaded", () => {
   SABORES360.createAPIIndicator();
+
+  // Ensure server knows which API base the client is using
+  try {
+    document.cookie =
+      "SABORES_API_BASE=" +
+      encodeURIComponent(SABORES360.API_BASE) +
+      "; path=/";
+  } catch (e) {}
 
   // Show API info in console on page load
   setTimeout(() => {

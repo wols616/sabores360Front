@@ -389,8 +389,12 @@ require_role('admin');
                     document.getElementById('products-count').textContent = data.products_count || data.productsCount || 0;
                     document.getElementById('low-stock-count').textContent = data.low_stock_count || data.lowStockCount || 0;
 
-                    // Render recent orders
-                    renderRecentOrders(data.recent_orders || data.recentOrders || []);
+                    // Render recent orders (ensure most recent first by ID desc)
+                    let recentOrders = data.recent_orders || data.recentOrders || [];
+                    if (Array.isArray(recentOrders)) {
+                        recentOrders.sort((a, b) => (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0));
+                    }
+                    renderRecentOrders(recentOrders);
                 }
 
                 // Load today's sales data (from stats endpoint)

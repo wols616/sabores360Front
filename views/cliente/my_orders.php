@@ -449,7 +449,7 @@ require_auth();
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <select class="form-select" id="statusFilter">
                         <option value="">Todos los estados</option>
                         <option value="pending">Pendiente</option>
@@ -460,13 +460,20 @@ require_auth();
                         <option value="cancelled">Cancelado</option>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <select class="form-select" id="dateFilter">
                         <option value="">Todas las fechas</option>
                         <option value="today">Hoy</option>
                         <option value="week">Última semana</option>
                         <option value="month">Último mes</option>
                         <option value="3months">Últimos 3 meses</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="priceSort" title="Ordenar por precio">
+                        <option value="">Orden por defecto (ID)</option>
+                        <option value="price_desc">Precio: Mayor → Menor</option>
+                        <option value="price_asc">Precio: Menor → Mayor</option>
                     </select>
                 </div>
             </div>
@@ -946,6 +953,25 @@ require_auth();
             });
         }
 
+        // Sorting helper: default by order ID (ascending) unless price sort selected
+        function applySorting(orders) {
+            const sortMode = (document.getElementById('priceSort') && document.getElementById('priceSort').value) || '';
+
+            // Helper to get numeric total from various shapes
+            const getTotal = (o) => parseFloat(o.totalAmount || o.total_amount || o.total || 0) || 0;
+
+            if (sortMode === 'price_desc') {
+                orders.sort((a, b) => getTotal(b) - getTotal(a));
+            } else if (sortMode === 'price_asc') {
+                orders.sort((a, b) => getTotal(a) - getTotal(b));
+            } else {
+                // Default: sort by order id in descending sequence (most recent first)
+                orders.sort((a, b) => (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0));
+            }
+
+            return orders;
+        }
+
         // Filtering functions
         function applyFilters() {
             try {
@@ -993,6 +1019,8 @@ require_auth();
                     return matchesSearch && matchesStatus && matchesDate;
                 });
 
+                // Apply sorting after filters
+                filteredOrders = applySorting(filteredOrders);
                 renderOrders(filteredOrders);
                 updateFilterSummary();
             } catch (error) {
@@ -1042,6 +1070,16 @@ require_auth();
                 });
             }
 
+            // Price sort
+            const priceSortVal = document.getElementById('priceSort') ? document.getElementById('priceSort').value : '';
+            if (priceSortVal) {
+                const map = {
+                    'price_desc': 'Precio: Mayor → Menor',
+                    'price_asc': 'Precio: Menor → Mayor'
+                };
+                filters.push({ type: 'sort', label: map[priceSortVal] || 'Ordenamiento' });
+            }
+
             if (filters.length > 0) {
                 activeFilters.innerHTML = filters.map(filter =>
                     `<span class="badge">
@@ -1060,6 +1098,7 @@ require_auth();
             document.getElementById('searchInput').value = '';
             document.getElementById('statusFilter').value = '';
             document.getElementById('dateFilter').value = '';
+            if (document.getElementById('priceSort')) document.getElementById('priceSort').value = '';
             applyFilters();
         }
 
@@ -1070,6 +1109,9 @@ require_auth();
                     break;
                 case 'status':
                     document.getElementById('statusFilter').value = '';
+                    break;
+                case 'sort':
+                    if (document.getElementById('priceSort')) document.getElementById('priceSort').value = '';
                     break;
                 case 'date':
                     document.getElementById('dateFilter').value = '';
@@ -1103,6 +1145,8 @@ require_auth();
                 }
 
                 if (orders && Array.isArray(orders)) {
+                    // Ensure default ordering is by order ID sequence (descending — most recent first)
+                    orders.sort((a, b) => (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0));
                     allOrders = orders;
                     filteredOrders = [...allOrders];
                     applyFilters();
@@ -1137,6 +1181,7 @@ require_auth();
             const searchInput = document.getElementById('searchInput');
             const statusFilter = document.getElementById('statusFilter');
             const dateFilter = document.getElementById('dateFilter');
+            const priceSort = document.getElementById('priceSort');
             const clearFiltersBtn = document.getElementById('clearFilters');
 
             // Real-time search
@@ -1145,6 +1190,7 @@ require_auth();
             // Filter changes
             statusFilter.addEventListener('change', applyFilters);
             dateFilter.addEventListener('change', applyFilters);
+            if (priceSort) priceSort.addEventListener('change', applyFilters);
 
             // Clear filters button
             clearFiltersBtn.addEventListener('click', clearAllFilters);

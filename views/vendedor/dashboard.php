@@ -516,38 +516,75 @@ require_role('vendedor');
                         else if (Array.isArray(data.data)) recentOrders = data.data;
                     }
 
-                    // Calculate additional stats
+                    // Calculate additional stats. Prefer server-provided fields when available:
+                    // - data.today_orders : array of today's orders for this seller
+                    // - data.today_sales_total : numeric total for today's sales
                     let todayOrders = 0;
                     let salesToday = 0;
                     let inferredPending = 0;
 
-                    const today = new Date().toISOString().slice(0, 10);
                     const lowerPendingStates = ['confirmado', 'pendiente', 'pending',
                         'en preparación', 'en preparacion', 'preparacion', 'confirmed',
                         'preparing', 'processing', 'por preparar'];
 
-                    if (Array.isArray(recentOrders) && recentOrders.length) {
+                    // If backend returned explicit today's orders list or total, use them
+                    if (Array.isArray(data.today_orders)) {
                         try {
-                            // Count today's orders and calculate sales
-                            recentOrders.forEach(order => {
-                                const orderDate = (order.createdAt || order.created_at || order.date || '').slice(0, 10);
-                                if (orderDate === today) {
-                                    todayOrders++;
-                                    salesToday += Number(order.totalAmount || order.total_amount || order.total || 0);
-                                }
+                            todayOrders = data.today_orders.length;
+                            if (!isNaN(Number(data.today_sales_total))) {
+                                salesToday = Number(data.today_sales_total);
+                            } else {
+                                // Sum totals from provided orders as a fallback
+                                salesToday = data.today_orders.reduce((acc, o) => {
+                                    return acc + (Number(o.totalAmount || o.total_amount || o.total || 0) || 0);
+                                }, 0);
+                            }
 
-                                // Count pending orders
-                                const status = (order.status || order.state || '').toString().toLowerCase();
-                                if (lowerPendingStates.some(ps => status.includes(ps))) {
-                                    inferredPending++;
-                                }
-                            });
+                            // infer pending from recentOrders if present
+                            if (Array.isArray(recentOrders) && recentOrders.length) {
+                                recentOrders.forEach(order => {
+                                    const status = (order.status || order.state || '').toString().toLowerCase();
+                                    if (lowerPendingStates.some(ps => status.includes(ps))) {
+                                        inferredPending++;
+                                    }
+                                });
+                            }
                         } catch (e) {
-                            console.warn('Error calculating stats:', e);
+                            console.warn('Error using server today_orders:', e);
+                        }
+                    } else {
+                        // Fallback: infer from recentOrders (robust date compare using Date)
+                        if (Array.isArray(recentOrders) && recentOrders.length) {
+                            try {
+                                const now = new Date();
+                                recentOrders.forEach(order => {
+                                    const dateStr = order.createdAt || order.created_at || order.date || '';
+                                    const orderDateObj = dateStr ? new Date(dateStr) : null;
+                                    if (orderDateObj &&
+                                        orderDateObj.getFullYear() === now.getFullYear() &&
+                                        orderDateObj.getMonth() === now.getMonth() &&
+                                        orderDateObj.getDate() === now.getDate()) {
+                                        todayOrders++;
+                                        salesToday += Number(order.totalAmount || order.total_amount || order.total || 0) || 0;
+                                    }
+
+                                    const status = (order.status || order.state || '').toString().toLowerCase();
+                                    if (lowerPendingStates.some(ps => status.includes(ps))) {
+                                        inferredPending++;
+                                    }
+                                });
+                            } catch (e) {
+                                console.warn('Error calculating stats fallback:', e);
+                            }
                         }
                     }
 
-                    // Use the maximum between server-provided and inferred pending
+                    // If backend provided a numeric today_sales_total, prefer it
+                    if (!isNaN(Number(data.today_sales_total))) {
+                        salesToday = Number(data.today_sales_total);
+                    }
+
+                    // Use the maximum between server-provided pending and inferred pending
                     pending = Math.max(Number(pending) || 0, inferredPending);
 
                     // Get products count (try many fallbacks to handle different API shapes)

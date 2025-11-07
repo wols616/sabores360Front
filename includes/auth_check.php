@@ -11,12 +11,111 @@ function get_api_base()
     // try environment then default
     if (!empty($_ENV['SABORES_API_BASE']))
         return rtrim($_ENV['SABORES_API_BASE'], '/') . '/';
+
+    // If the client has provided a preferred API base via cookie (set by SABORES360.API on the client), prefer it
+    if (!empty($_COOKIE['SABORES_API_BASE'])) {
+        return rtrim($_COOKIE['SABORES_API_BASE'], '/') . '/';
+    }
+
+    // If we've detected and cached an API base earlier in this session, reuse it
+    if (!empty($_SESSION['api_base'])) {
+        return rtrim($_SESSION['api_base'], '/') . '/';
+    }
+
+    // Default fallback (legacy): try 8080 first
     return 'http://localhost:8080/api/';
+}
+
+/**
+ * Try calling the API /auth/me using a specific base URL (used for autodetection)
+ * Returns the parsed response array on success, or null on failure.
+ */
+function call_api_me_with_base($base, $token = null)
+{
+    $url = rtrim($base, '/') . '/auth/me';
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+
+    $headers = ['Accept: application/json'];
+    if ($token) {
+        $headers[] = 'Authorization: Bearer ' . $token;
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    } else {
+        if (!empty($_COOKIE)) {
+            $cookiePairs = [];
+            foreach ($_COOKIE as $k => $v) {
+                $cookiePairs[] = $k . '=' . $v;
+            }
+            curl_setopt($ch, CURLOPT_COOKIE, implode('; ', $cookiePairs));
+        }
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    }
+
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+    $resp = curl_exec($ch);
+    $err = curl_error($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($resp === false)
+        return null;
+    $json = json_decode($resp, true);
+    if ($json === null)
+        return null;
+    return array_merge(['http_code' => $code], $json);
+}
+
+/**
+ * Attempt to autodetect a working API base by probing common ports and the current host.
+ * Caches the discovered base in session to avoid repeated probes.
+ */
+function detect_and_cache_api_base()
+{
+    // If already detected, reuse
+    if (!empty($_SESSION['api_base']))
+        return $_SESSION['api_base'];
+
+    $candidates = [];
+
+    // If running behind a proxy or with HOST header, respect the host
+    $host = 'localhost';
+    if (!empty($_SERVER['HTTP_HOST'])) {
+        // strip possible port
+        $host = preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST']);
+    }
+
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+
+    // 1) common env fallback values
+    $candidates[] = $scheme . '://' . $host . ':8000/api/';
+    $candidates[] = $scheme . '://' . $host . ':8080/api/';
+
+    // 2) localhost explicit (in case HTTP_HOST is different)
+    $candidates[] = 'http://localhost:8000/api/';
+    $candidates[] = 'http://localhost:8080/api/';
+
+    // 3) last-resort: default from get_api_base() (could be 8080)
+    $candidates[] = 'http://localhost:8080/api/';
+
+    foreach ($candidates as $cand) {
+        $res = call_api_me_with_base($cand, null);
+        if ($res && !empty($res['success'])) {
+            // cache and return
+            $_SESSION['api_base'] = rtrim($cand, '/') . '/';
+            return $_SESSION['api_base'];
+        }
+    }
+
+    return null;
 }
 
 function call_api_me_server($token = null)
 {
-    $url = rtrim(get_api_base(), '/') . '/auth/me';
+    // Use current API base; if it fails, try autodetection once
+    $base = get_api_base();
+    $url = rtrim($base, '/') . '/auth/me';
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 5);
@@ -45,11 +144,25 @@ function call_api_me_server($token = null)
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
-    if ($resp === false)
+    if ($resp === false) {
+        // try autodetection if not yet cached
+        $detected = detect_and_cache_api_base();
+        if ($detected && $detected !== $base) {
+            return call_api_me_with_base($detected, $token);
+        }
         return ['success' => false, 'error' => $err, 'code' => $code];
+    }
+
     $json = json_decode($resp, true);
-    if ($json === null)
+    if ($json === null) {
+        // try autodetection
+        $detected = detect_and_cache_api_base();
+        if ($detected && $detected !== $base) {
+            return call_api_me_with_base($detected, $token);
+        }
         return ['success' => false, 'error' => 'invalid_json', 'raw' => $resp, 'code' => $code];
+    }
+
     return array_merge(['http_code' => $code], $json);
 }
 
