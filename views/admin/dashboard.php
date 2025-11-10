@@ -165,34 +165,7 @@ require_role('admin');
             </div>
         </div>
 
-        <!-- Charts Row -->
-        <div class="row mb-4">
-            <div class="col-lg-6 mb-4">
-                <div class="card chart-card">
-                    <div class="card-header bg-transparent">
-                        <h5 class="mb-0">
-                            <i class="bi bi-graph-up text-orange"></i> Ventas del Día Actual
-                        </h5>
-                        <small class="text-muted" id="today-date"></small>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="salesChart" height="300"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-6 mb-4">
-                <div class="card chart-card">
-                    <div class="card-header bg-transparent">
-                        <h5 class="mb-0">
-                            <i class="bi bi-person-badge text-orange"></i> Ventas por Vendedor
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="categoriesChart" height="300"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- Seller numeric cards removed per request -->
 
         <!-- Recent Orders -->
         <div class="row">
@@ -219,136 +192,16 @@ require_role('admin');
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <?php require __DIR__ . '/../../includes/print_api_js.php'; ?>
     <script src="/Sabores360/assets/js/common.js"></script>
     <script>
         let salesChart, categoriesChart;
 
-        // Initialize charts
+        // Charts were removed from this dashboard; keep initCharts as a no-op to avoid errors
         function initCharts() {
-            // Sales Today Chart (Line)
-            const salesTodayCtx = document.getElementById('salesChart').getContext('2d');
-            salesChart = new Chart(salesTodayCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Ventas del día (€)',
-                        data: [],
-                        borderColor: '#ff6b35',
-                        backgroundColor: 'rgba(255, 107, 53, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: '#ff6b35',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: true
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function (ctx) {
-                                    const y = ctx.parsed ? ctx.parsed.y : ctx.raw;
-                                    return 'Ventas: ' + Number(y || 0).toFixed(2) + ' €';
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(255, 107, 53, 0.1)'
-                            },
-                            ticks: {
-                                color: '#666',
-                                callback: function (value) {
-                                    return value + ' €';
-                                }
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            },
-                            ticks: {
-                                color: '#666'
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Sales by Seller Chart (Bar)
-            const salesBySellerCtx = document.getElementById('categoriesChart').getContext('2d');
-            categoriesChart = new Chart(salesBySellerCtx, {
-                type: 'bar',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Ventas por vendedor (€)',
-                        data: [],
-                        backgroundColor: [
-                            '#ff6b35',
-                            '#ff8c42',
-                            '#ffad73',
-                            '#ffd1a9',
-                            '#e55a2b',
-                            '#ff9966'
-                        ],
-                        borderWidth: 0,
-                        borderRadius: 8,
-                        borderSkipped: false
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function (ctx) {
-                                    const y = ctx.parsed ? ctx.parsed.y : ctx.raw;
-                                    return 'Ventas: ' + Number(y || 0).toFixed(2) + ' €';
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(255, 107, 53, 0.1)'
-                            },
-                            ticks: {
-                                color: '#666',
-                                callback: function (value) {
-                                    return value + ' €';
-                                }
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            },
-                            ticks: {
-                                color: '#666',
-                                maxRotation: 45
-                            }
-                        }
-                    }
-                }
-            });
+            // charts removed — dashboard shows numeric seller stats instead
+            salesChart = null;
+            categoriesChart = null;
         }
 
         // Helper functions from stats.php
@@ -371,12 +224,6 @@ require_role('admin');
             try {
                 // Get today's date for sales query
                 const today = new Date().toISOString().slice(0, 10);
-                document.getElementById('today-date').textContent = new Date().toLocaleDateString('es-ES', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
 
                 // Load basic dashboard stats
                 const response = await SABORES360.API.get('admin/dashboard');
@@ -397,53 +244,9 @@ require_role('admin');
                     renderRecentOrders(recentOrders);
                 }
 
-                // Load today's sales data (from stats endpoint)
-                const salesParams = { date_from: today, date_to: today };
-                const salesResponse = await SABORES360.API.get('admin/stats/sales-by-day?' + new URLSearchParams(salesParams));
+                // Seller metrics removed — no vendor selector or per-seller stats to load
 
-                if (salesResponse.success) {
-                    const salesList = resolveList(salesResponse, 'sales_by_day') ||
-                        resolveList(salesResponse, 'salesByDay') ||
-                        resolveList(salesResponse, 'sales_byday') || [];
-
-                    if (salesList && salesList.length) {
-                        const labels = salesList.map(x => x.fecha || x.date || '');
-                        const values = salesList.map(x => num(x.totalVentas != null ? x.totalVentas :
-                            (x.total != null ? x.total :
-                                (x.total_ventas != null ? x.total_ventas : 0))));
-
-                        salesChart.data.labels = labels;
-                        salesChart.data.datasets[0].data = values;
-                        salesChart.update();
-                    } else {
-                        // No sales data for today
-                        salesChart.data.labels = [today];
-                        salesChart.data.datasets[0].data = [0];
-                        salesChart.update();
-                    }
-                }
-
-                // Load sales by seller data
-                const sellerResponse = await SABORES360.API.get('admin/stats/sales-by-seller?' + new URLSearchParams(salesParams));
-
-                if (sellerResponse.success) {
-                    const sellerData = sellerResponse.sales_by_seller ||
-                        (sellerResponse.data && sellerResponse.data.sales_by_seller) || [];
-
-                    if (sellerData && sellerData.length) {
-                        const labels = sellerData.map(x => x.vendedorNombre || x.vendedorNombre || ('Vendedor ' + x.vendedorId));
-                        const values = sellerData.map(x => num(x.totalVentas || x.total || 0));
-
-                        categoriesChart.data.labels = labels;
-                        categoriesChart.data.datasets[0].data = values;
-                        categoriesChart.update();
-                    } else {
-                        // No seller data
-                        categoriesChart.data.labels = ['Sin datos'];
-                        categoriesChart.data.datasets[0].data = [0];
-                        categoriesChart.update();
-                    }
-                }
+                // charts removed: no further processing for sales-by-day or sales-by-seller
 
             } catch (err) {
                 console.error('Dashboard error:', err);
@@ -528,6 +331,8 @@ require_role('admin');
             initCharts();
             loadDashboard();
         });
+
+        // Per-seller stats removed
     </script>
 </body>
 

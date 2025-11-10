@@ -46,6 +46,7 @@
         </section>
     </main>
 
+    <?php require __DIR__ . '/includes/print_api_js.php'; ?>
     <script src="/Sabores360/assets/js/common.js"></script>
     <script>
         document.getElementById('cookies').textContent = 'Cookies: ' + (document.cookie || '(none)');

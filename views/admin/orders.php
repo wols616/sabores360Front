@@ -250,6 +250,7 @@ require_role('admin');
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <?php require __DIR__ . '/../../includes/print_api_js.php'; ?>
     <script src="/Sabores360/assets/js/common.js"></script>
     <script>
         // Authentication helpers
@@ -355,7 +356,16 @@ require_role('admin');
             const paymentMethod = order.paymentMethod || order.payment_method || '';
             const items = order.items || order.products || [];
             const client = order.client || order.user || {};
-            const seller = order.seller || {};
+            // Resolve seller for display. If backend returns a nested seller object, use it.
+            // Otherwise, fall back to common id fields (sellerId, seller_id, vendorId, vendor_id).
+            let seller = order.seller || null;
+            let sellerDisplay = null;
+            if (seller) {
+                sellerDisplay = seller.name || seller.email || (seller.id ? ('Vendedor #' + seller.id) : null);
+            } else {
+                const sid = order.sellerId || order.seller_id || order.vendorId || order.vendor_id;
+                if (sid) sellerDisplay = 'Vendedor #' + sid;
+            }
 
             // Status badge color
             let statusClass = 'bg-secondary';
@@ -454,7 +464,7 @@ require_role('admin');
                     </div>
                 </div>
 
-                ${seller && (seller.name || seller.email) ? `
+                ${sellerDisplay ? `
                 <div class="row mb-3">
                     <div class="col-12">
                         <h6 class="text-orange mb-3">
@@ -465,8 +475,7 @@ require_role('admin');
                                 <div class="d-flex align-items-center">
                                     <i class="bi bi-person-check-fill text-success me-2 fs-4"></i>
                                     <div>
-                                        <div class="fw-bold">${escapeHtml(seller.name || seller.email)}</div>
-                                        ${seller.email && seller.name ? `<div class="text-muted small">${escapeHtml(seller.email)}</div>` : ''}
+                                        <div class="fw-bold">${escapeHtml(sellerDisplay)}</div>
                                     </div>
                                 </div>
                             </div>
@@ -523,6 +532,35 @@ require_role('admin');
             let allOrders = [];
             let allVendors = [];
             let filteredOrders = [];
+
+            // Helper: resolve seller information for an order
+            // Supports multiple shapes: order.seller (object), order.sellerId, order.seller_id,
+            // order.vendorId, order.vendor_id. If vendors list is available, it will map ids
+            // to vendor objects so UI can show vendor name/email even when backend returns only ids.
+            function getSellerFromOrder(order) {
+                if (!order) return null;
+
+                // If seller is already an object
+                if (order.seller && (order.seller.id || order.seller.name || order.seller.email)) {
+                    return order.seller;
+                }
+
+                // Check common id variants
+                const possibleIds = [order.sellerId, order.seller_id, order.vendorId, order.vendor_id, order.seller?.id];
+                const sellerId = possibleIds.find(v => v !== undefined && v !== null);
+                if (sellerId) {
+                    // Try to find in loaded vendors
+                    if (Array.isArray(allVendors) && allVendors.length) {
+                        const found = allVendors.find(v => String(v.id) === String(sellerId));
+                        if (found) return found;
+                    }
+
+                    // Fallback: return an object with id so callers can still detect assignment
+                    return { id: sellerId };
+                }
+
+                return null;
+            }
 
             // Get filter elements
             const searchInput = document.getElementById('search-input');
@@ -619,13 +657,13 @@ require_role('admin');
                         if (orderStatus !== statusValue) return false;
                     }
 
-                    // Seller filter
+                    // Seller filter (supports multiple shapes)
                     if (sellerValue) {
+                        const resolved = getSellerFromOrder(order);
                         if (sellerValue === 'unassigned') {
-                            const hasSeller = order.seller && (order.seller.id || order.seller.name || order.seller.email);
-                            if (hasSeller) return false;
+                            if (resolved) return false; // has a seller -> exclude when 'unassigned' selected
                         } else {
-                            const sellerId = String(order.seller?.id || '');
+                            const sellerId = resolved ? String(resolved.id) : String(order.seller?.id || order.sellerId || order.seller_id || '');
                             if (sellerId !== sellerValue) return false;
                         }
                     }
@@ -672,7 +710,9 @@ require_role('admin');
                     const status = o.status || o.state || '';
                     const total = (o.totalAmount || o.total_amount || o.total || '');
                     const created = o.createdAt || o.created_at || o.date || '';
-                    const seller = (o.seller && (o.seller.name || o.seller.email)) ? (o.seller.name || o.seller.email) : null;
+                    // Resolve seller (supports multiple shapes: nested object or id fields)
+                    const resolvedSeller = getSellerFromOrder(o);
+                    const seller = resolvedSeller ? (resolvedSeller.name || resolvedSeller.email) : null;
 
                     // Status badge color
                     let statusClass = 'bg-secondary';
@@ -692,6 +732,9 @@ require_role('admin');
                     let selectOptions = `<option value="">${seller ? '-- cambiar vendedor --' : '-- seleccionar vendedor --'}</option>`;
                     let currentSellerId = null;
                     if (o.seller && o.seller.id) currentSellerId = o.seller.id;
+                    else if (resolvedSeller && resolvedSeller.id) currentSellerId = resolvedSeller.id;
+                    else if (o.sellerId) currentSellerId = o.sellerId;
+                    else if (o.seller_id) currentSellerId = o.seller_id;
 
                     allVendors.forEach(v => {
                         const selected = (currentSellerId && Number(currentSellerId) === Number(v.id)) ? 'selected' : '';
@@ -779,7 +822,7 @@ require_role('admin');
                         msg.style.display = 'block';
 
                         try {
-                            const path = `admin/orders/${id}/assign`;
+                            const path = `seller/orders/${id}/assign`;
                             const body = { sellerId: Number(sellerId) };
                             const res = (window.SABORES360 && SABORES360.API) ? await SABORES360.API.post(path, body) : await (async () => { const r = await fetch(base + path, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); return r.json(); })();
 

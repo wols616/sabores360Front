@@ -345,6 +345,7 @@ require_role('admin');
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <?php require __DIR__ . '/../../includes/print_api_js.php'; ?>
     <script src="/Sabores360/assets/js/common.js"></script>
     <script>
         (function () {
@@ -550,183 +551,85 @@ require_role('admin');
                 }
 
                 try {
-                    // Get today's date for sales query
-                    const today = new Date().toISOString().slice(0, 10);
-                    const salesParams = { date_from: today, date_to: today };
-
-                    // Load today's sales data (Ventas del Día Actual)
+                    // Sales Trend: show current week (Monday - Sunday)
                     const salesCtx = document.getElementById('salesTrendChart');
                     if (salesCtx) {
-                        const salesResponse = await SABORES360.API.get('admin/stats/sales-by-day?' + new URLSearchParams(salesParams));
+                        try {
+                            const now = new Date();
+                            // get Monday (start of week) - assuming week starts on Monday
+                            const day = now.getDay(); // 0 (Sun) .. 6 (Sat)
+                            const diffToMonday = (day === 0) ? -6 : (1 - day);
+                            const monday = new Date(now);
+                            monday.setDate(now.getDate() + diffToMonday);
+                            const sunday = new Date(monday);
+                            sunday.setDate(monday.getDate() + 6);
 
-                        if (salesResponse.success) {
-                            const salesList = resolveList(salesResponse, 'sales_by_day') ||
-                                resolveList(salesResponse, 'salesByDay') ||
-                                resolveList(salesResponse, 'sales_byday') || [];
+                            function fmt(d) { return d.toISOString().slice(0, 10); }
+                            const params = new URLSearchParams({ date_from: fmt(monday), date_to: fmt(sunday) });
 
-                            let labels = [];
-                            let values = [];
+                            const salesResponse = await SABORES360.API.get('admin/stats/sales-by-day?' + params.toString());
+                            const salesList = resolveList(salesResponse, 'sales_by_day') || resolveList(salesResponse, 'salesByDay') || resolveList(salesResponse, 'sales_byday') || [];
 
-                            if (salesList && salesList.length) {
-                                labels = salesList.map(x => x.fecha || x.date || '');
-                                values = salesList.map(x => num(x.totalVentas != null ? x.totalVentas :
-                                    (x.total != null ? x.total :
-                                        (x.total_ventas != null ? x.total_ventas : 0))));
-                            } else {
-                                // No sales data for today
-                                labels = [today];
-                                values = [0];
-                            }
+                            const labels = Array.isArray(salesList) ? salesList.map(x => x.fecha || x.date || '') : [];
+                            const values = Array.isArray(salesList) ? salesList.map(x => num(x.totalVentas != null ? x.totalVentas : (x.total != null ? x.total : (x.total_ventas != null ? x.total_ventas : 0)))) : [];
 
-                            new Chart(salesCtx, {
-                                type: 'line',
-                                data: {
-                                    labels: labels,
-                                    datasets: [{
-                                        label: 'Ventas del día (€)',
-                                        data: values,
-                                        borderColor: '#ff6b35',
-                                        backgroundColor: 'rgba(255, 107, 53, 0.1)',
-                                        borderWidth: 3,
-                                        fill: true,
-                                        tension: 0.4,
-                                        pointBackgroundColor: '#ff6b35',
-                                        pointBorderColor: '#fff',
-                                        pointBorderWidth: 2,
-                                        pointRadius: 6
-                                    }]
-                                },
-                                options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    plugins: {
-                                        legend: {
-                                            display: true
-                                        },
-                                        tooltip: {
-                                            callbacks: {
-                                                label: function (ctx) {
-                                                    const y = ctx.parsed ? ctx.parsed.y : ctx.raw;
-                                                    return 'Ventas: ' + Number(y || 0).toFixed(2) + ' €';
-                                                }
-                                            }
-                                        }
-                                    },
-                                    scales: {
-                                        y: {
-                                            beginAtZero: true,
-                                            grid: {
-                                                color: 'rgba(255, 107, 53, 0.1)'
-                                            },
-                                            ticks: {
-                                                color: '#666',
-                                                callback: function (value) {
-                                                    return value + ' €';
-                                                }
-                                            }
-                                        },
-                                        x: {
-                                            grid: {
-                                                display: false
-                                            },
-                                            ticks: {
-                                                color: '#666'
-                                            }
-                                        }
-                                    }
+                            if (labels.length === 0) {
+                                // fill with week days if no data
+                                const days = [];
+                                for (let i = 0; i < 7; i++) {
+                                    const d = new Date(monday);
+                                    d.setDate(monday.getDate() + i);
+                                    days.push(d.toLocaleDateString('es-ES', { weekday: 'short' }));
                                 }
-                            });
+                                new Chart(salesCtx, {
+                                    type: 'line',
+                                    data: { labels: days, datasets: [{ label: 'Ventas (semana actual)', data: [0, 0, 0, 0, 0, 0, 0], borderColor: '#ff6b35', backgroundColor: 'rgba(255, 107, 53, 0.1)', fill: true, tension: 0.3 }] },
+                                    options: { responsive: true, maintainAspectRatio: false }
+                                });
+                            } else {
+                                new Chart(salesCtx, {
+                                    type: 'line',
+                                    data: { labels: labels, datasets: [{ label: 'Ventas (semana actual) (€)', data: values, borderColor: '#ff6b35', backgroundColor: 'rgba(255, 107, 53, 0.1)', fill: true, tension: 0.3 }] },
+                                    options: { responsive: true, maintainAspectRatio: false }
+                                });
+                            }
+                        } catch (err) {
+                            console.error('Error loading week sales by day for chart:', err);
                         }
                     }
 
-                    // Load sales by seller (Ventas por Vendedor)
+                    // Sales by seller: use the already-fetched data passed in 'data'
                     const categoryCtx = document.getElementById('categoryChart');
                     if (categoryCtx) {
-                        const sellerResponse = await SABORES360.API.get('admin/stats/sales-by-seller?' + new URLSearchParams(salesParams));
-
-                        if (sellerResponse.success) {
-                            const sellerData = sellerResponse.sales_by_seller ||
-                                (sellerResponse.data && sellerResponse.data.sales_by_seller) || [];
-
-                            let labels = [];
-                            let values = [];
-
-                            if (sellerData && sellerData.length) {
-                                labels = sellerData.map(x => x.vendedorNombre || x.vendedorNombre || ('Vendedor ' + x.vendedorId));
-                                values = sellerData.map(x => num(x.totalVentas || x.total || 0));
-                            } else {
-                                // No seller data
-                                labels = ['Sin datos'];
-                                values = [0];
+                        try {
+                            const sellerResp = data.sales_by_seller || data.sales_by_seller || (data.sales_by_seller && data.sales_by_seller.data) || data.sales_by_seller;
+                            // some endpoints return wrapper objects; try common locations
+                            let list = [];
+                            if (sellerResp) {
+                                if (Array.isArray(sellerResp.sales_by_seller)) list = sellerResp.sales_by_seller;
+                                else if (Array.isArray(sellerResp.data)) list = sellerResp.data;
+                                else if (Array.isArray(sellerResp)) list = sellerResp;
+                                else if (sellerResp.data && Array.isArray(sellerResp.data.sales_by_seller)) list = sellerResp.data.sales_by_seller;
                             }
 
-                            new Chart(categoryCtx, {
-                                type: 'bar',
-                                data: {
-                                    labels: labels,
-                                    datasets: [{
-                                        label: 'Ventas por vendedor (€)',
-                                        data: values,
-                                        backgroundColor: [
-                                            '#ff6b35',
-                                            '#ff8c42',
-                                            '#ffad73',
-                                            '#ffd1a9',
-                                            '#e55a2b',
-                                            '#ff9966'
-                                        ],
-                                        borderWidth: 0,
-                                        borderRadius: 8,
-                                        borderSkipped: false
-                                    }]
-                                },
-                                options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    plugins: {
-                                        legend: {
-                                            display: false
-                                        },
-                                        tooltip: {
-                                            callbacks: {
-                                                label: function (ctx) {
-                                                    const y = ctx.parsed ? ctx.parsed.y : ctx.raw;
-                                                    return 'Ventas: ' + Number(y || 0).toFixed(2) + ' €';
-                                                }
-                                            }
-                                        }
-                                    },
-                                    scales: {
-                                        y: {
-                                            beginAtZero: true,
-                                            grid: {
-                                                color: 'rgba(255, 107, 53, 0.1)'
-                                            },
-                                            ticks: {
-                                                color: '#666',
-                                                callback: function (value) {
-                                                    return value + ' €';
-                                                }
-                                            }
-                                        },
-                                        x: {
-                                            grid: {
-                                                display: false
-                                            },
-                                            ticks: {
-                                                color: '#666',
-                                                maxRotation: 45
-                                            }
-                                        }
-                                    }
-                                }
-                            });
+                            if (!Array.isArray(list) || list.length === 0) {
+                                // fallback to empty chart
+                                new Chart(categoryCtx, { type: 'bar', data: { labels: ['Sin datos'], datasets: [{ label: 'Ventas por vendedor', data: [0], backgroundColor: ['#ff6b35'] }] }, options: { responsive: true, maintainAspectRatio: false } });
+                            } else {
+                                const labels = list.map(x => x.vendedorNombre || x.name || x.label || ('Vendedor ' + (x.vendedorId || x.id || '')));
+                                const vals = list.map(x => num(x.totalVentas || x.total || x.amount || 0));
+                                new Chart(categoryCtx, { type: 'bar', data: { labels: labels, datasets: [{ label: 'Ventas por vendedor (€)', data: vals, backgroundColor: ['#ff6b35', '#ff8c42', '#ffad73', '#ffd1a9', '#e55a2b', '#ff9966'], borderRadius: 8, borderSkipped: false }] }, options: { responsive: true, maintainAspectRatio: false } });
+                            }
+                        } catch (err) {
+                            console.error('Error rendering sales by seller chart:', err);
                         }
                     }
                 } catch (error) {
                     console.error('Error loading chart data:', error);
                 }
-            } form.addEventListener('submit', async (e) => {
+            }
+
+            form.addEventListener('submit', async (e) => {
                 e.preventDefault();
 
                 // Show loading state
@@ -744,24 +647,92 @@ require_role('admin');
                 const params = new URLSearchParams();
                 if (fd.get('date_from')) params.append('date_from', fd.get('date_from'));
                 if (fd.get('date_to')) params.append('date_to', fd.get('date_to'));
-                const base = (window.SABORES360 && SABORES360.API_BASE) ? SABORES360.API_BASE : 'http://localhost:8080/api/';
+
+                // helper to call endpoints with SABORES360.API when available
+                async function callEndpoint(ep) {
+                    try {
+                        if (window.SABORES360 && SABORES360.API) {
+                            return await SABORES360.API.get(ep + (params.toString() ? ('?' + params.toString()) : ''));
+                        } else {
+                            const base = 'http://localhost:8080/api/';
+                            const res = await fetch(base + ep + (params.toString() ? ('?' + params.toString()) : ''), { credentials: 'include' });
+                            return await res.json();
+                        }
+                    } catch (err) {
+                        console.error('Error calling', ep, err);
+                        return null;
+                    }
+                }
 
                 try {
-                    const d = await (window.SABORES360 && SABORES360.API ? SABORES360.API.get('admin/reports?' + params.toString()) : (async () => { const res = await fetch(base + 'admin/reports?' + params.toString(), { credentials: 'include' }); return res.json(); })());
+                    // Call the same endpoints used by the stats charts
+                    const endpoints = {
+                        sales_by_day: 'admin/stats/sales-by-day',
+                        sales_by_seller: 'admin/stats/sales-by-seller',
+                        top_products: 'admin/stats/top-products',
+                        orders_by_status: 'admin/stats/orders-by-status',
+                        orders_period: 'admin/stats/orders-period',
+                        rates: 'admin/stats/rates',
+                        revenue_by_segment: 'admin/stats/revenue-by-segment',
+                        top_clients: 'admin/stats/top-clients'
+                    };
 
-                    if (d && d.success) {
-                        reportData = d.data || d;
-                        renderReportData(reportData);
-                        downloadGroup.style.display = 'flex';
-                    } else {
-                        resultsDiv.innerHTML = `
-                            <div class="alert alert-warning">
-                                <i class="bi bi-exclamation-triangle"></i> No hay resultados para el período seleccionado
-                            </div>
-                        `;
-                        downloadGroup.style.display = 'none';
-                    }
+                    const promises = Object.entries(endpoints).map(([k, ep]) => callEndpoint(ep).then(res => ({ k, res })));
+                    const results = await Promise.all(promises);
+
+                    // Assemble report data
+                    const data = {};
+                    results.forEach(({ k, res }) => {
+                        data[k] = res || null;
+                    });
+
+                    // Compute summary from available data
+                    const summary = {};
+                    // totalRevenue: try revenue_by_segment.total if present, else sum sales_by_day totals
+                    try {
+                        const rbs = data.revenue_by_segment;
+                        if (rbs && rbs.data && Array.isArray(rbs.data.by_seller)) {
+                            const total = rbs.data.by_seller.reduce((s, it) => s + (Number(it.totalVentas || it.total || it.amount || 0)), 0);
+                            summary.totalSales = Number(total.toFixed ? total : Number(total));
+                        } else {
+                            const sbd = data.sales_by_day;
+                            const list = (sbd && (sbd.sales_by_day || (sbd.data && sbd.data.sales_by_day))) || (sbd && (sbd.salesByDay || (sbd.data && sbd.data.salesByDay))) || [];
+                            const total = (Array.isArray(list) ? list.reduce((s, it) => s + (Number(it.totalVentas || it.total || it.total_ventas || 0)), 0) : 0);
+                            summary.totalSales = total;
+                        }
+                    } catch (err) { summary.totalSales = 0; }
+
+                    // totalOrders: try orders_period.current_total or sum of orders_period series counts
+                    try {
+                        const op = data.orders_period;
+                        let totalOrders = null;
+                        if (op) {
+                            if (op.current_total != null) totalOrders = Number(op.current_total);
+                            else if (op.data && op.data.current_total != null) totalOrders = Number(op.data.current_total);
+                            else if (op.data && op.data.series && Array.isArray(op.data.series)) totalOrders = op.data.series.reduce((s, it) => s + (Number(it.count || it.cantidad || 0)), 0);
+                        }
+                        summary.totalOrders = totalOrders != null ? totalOrders : 0;
+                    } catch (err) { summary.totalOrders = 0; }
+
+                    // avgOrderValue
+                    summary.avgOrderValue = (summary.totalOrders > 0) ? (summary.totalSales / summary.totalOrders) : 0;
+
+                    // topProduct from top_products
+                    try {
+                        const tp = data.top_products;
+                        const list = (tp && (tp.top_products || (tp.data && tp.data.top_products))) || (tp && (tp.data || tp.top_products)) || [];
+                        if (Array.isArray(list) && list.length) summary.topProduct = list[0].productoNombre || list[0].label || list[0].name || '—';
+                        else summary.topProduct = '—';
+                    } catch (err) { summary.topProduct = '—'; }
+
+                    data.summary = summary;
+
+                    reportData = data;
+                    renderReportData(reportData);
+                    generateCharts(reportData);
+                    downloadGroup.style.display = 'flex';
                 } catch (err) {
+                    console.error('Error generating report from endpoints', err);
                     resultsDiv.innerHTML = `
                         <div class="alert alert-danger">
                             <i class="bi bi-exclamation-octagon"></i> Error al generar el reporte. Inténtalo de nuevo.

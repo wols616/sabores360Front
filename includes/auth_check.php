@@ -5,17 +5,17 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+// Eliminar cualquier cookie legacy SABORES_API_BASE para evitar que se recree o se use
+if (!headers_sent() && isset($_COOKIE['SABORES_API_BASE'])) {
+    setcookie('SABORES_API_BASE', '', time() - 3600, '/');
+    unset($_COOKIE['SABORES_API_BASE']);
+}
 
 function get_api_base()
 {
     // try environment then default
     if (!empty($_ENV['SABORES_API_BASE']))
         return rtrim($_ENV['SABORES_API_BASE'], '/') . '/';
-
-    // If the client has provided a preferred API base via cookie (set by SABORES360.API on the client), prefer it
-    if (!empty($_COOKIE['SABORES_API_BASE'])) {
-        return rtrim($_COOKIE['SABORES_API_BASE'], '/') . '/';
-    }
 
     // If we've detected and cached an API base earlier in this session, reuse it
     if (!empty($_SESSION['api_base'])) {

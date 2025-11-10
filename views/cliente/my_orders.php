@@ -531,6 +531,7 @@ require_auth();
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
+    <?php require __DIR__ . '/../../includes/print_api_js.php'; ?>
     <script src="/Sabores360/assets/js/common.js"></script>
     <script>
         let allOrders = [];
@@ -1134,14 +1135,25 @@ require_auth();
 
                 console.debug('Orders response', d);
 
-                // Normalize possible response shapes
+                // Normalize possible response shapes — aceptar arrays o estructuras envueltas.
                 let orders = [];
-                if (d && d.success) {
-                    if (Array.isArray(d.orders)) orders = d.orders;
-                    else if (Array.isArray(d.data)) orders = d.data;
-                    else if (d.data && Array.isArray(d.data.orders)) orders = d.data.orders;
-                    else if (d.data && Array.isArray(d.data.items)) orders = d.data.items;
-                    else if (Array.isArray(d.items)) orders = d.items;
+                if (Array.isArray(d)) {
+                    // API returned a raw array
+                    orders = d;
+                } else if (d && Array.isArray(d.orders)) {
+                    orders = d.orders;
+                } else if (d && Array.isArray(d.data)) {
+                    orders = d.data;
+                } else if (d && d.data && Array.isArray(d.data.orders)) {
+                    orders = d.data.orders;
+                } else if (d && d.data && Array.isArray(d.data.items)) {
+                    orders = d.data.items;
+                } else if (Array.isArray(d && d.items)) {
+                    orders = d.items;
+                } else if (d && d.success && d.data && typeof d.data === 'object') {
+                    // Sometimes API returns { success: true, data: { orders: [...] } }
+                    if (Array.isArray(d.data.orders)) orders = d.data.orders;
+                    else if (Array.isArray(d.data.items)) orders = d.data.items;
                 }
 
                 if (orders && Array.isArray(orders)) {

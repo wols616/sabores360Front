@@ -262,6 +262,7 @@ require_role('admin');
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <?php require __DIR__ . '/../../includes/print_api_js.php'; ?>
     <script src="/Sabores360/assets/js/common.js"></script>
     <script>
         (function () {
@@ -447,12 +448,73 @@ require_role('admin');
                     // rates -> pie chart (Confirmación, Cierre, Cancelación)
                     const rates = await fetchApi('admin/stats/rates', params);
                     if (rates) {
-                        const d = rates.data || rates;
-                        function getRateValue(r) { if (r == null) return 0; if (typeof r === 'number') return Number(r); if (r.value != null) return Number(r.value); if (r.rate != null) return Number(r.rate); return 0; }
+                        // support multiple wrapping shapes: {data: {...}} or {data: { rates: {...} }}
+                        let d = rates.data || rates;
+                        if (d && d.rates && typeof d.rates === 'object') d = d.rates;
+
+                        // helper to read value from various shapes
+                        function getRateValue(r) {
+                            if (r == null) return 0;
+                            // if it's an object like { value: X } or { rate: X }
+                            if (typeof r === 'object') {
+                                if (r.value != null) return Number(r.value);
+                                if (r.rate != null) return Number(r.rate);
+                                // sometimes backend returns { v: 0.5 }
+                                if (r.v != null) return Number(r.v);
+                                return 0;
+                            }
+                            // primitive (string/number)
+                            const n = Number(r);
+                            return Number.isFinite(n) ? n : 0;
+                        }
+
+                        // read a field by trying several possible keys
+                        function readField(obj, keys) {
+                            if (!obj) return undefined;
+                            for (const k of keys) {
+                                if (obj[k] !== undefined) return obj[k];
+                            }
+                            return undefined;
+                        }
+
+                        // Normalize: if fraction (0..1) convert to percentage (0..100)
+                        function normalizeForChart(val) {
+                            let v = getRateValue(val);
+                            if (v > 0 && v <= 1) v = v * 100;
+                            return Number.isFinite(Number(v)) ? Number(v) : 0;
+                        }
+
+                        const conf = readField(d, ['confirmation_rate', 'confirmationRate', 'confirmation']);
+                        const clo = readField(d, ['closure_rate', 'closureRate', 'closure']);
+                        const can = readField(d, ['cancellation_rate', 'cancellationRate', 'cancellation']);
+
                         const labels = ['Confirmación', 'Cierre', 'Cancelación'];
-                        const vals = [getRateValue(d.confirmation_rate), getRateValue(d.closure_rate), getRateValue(d.cancellation_rate)];
-                        if (charts.rates) charts.rates.destroy();
-                        charts.rates = makePieChart(document.getElementById('chart-rates').getContext('2d'), labels, vals);
+                        const vals = [normalizeForChart(conf), normalizeForChart(clo), normalizeForChart(can)];
+                        console.debug('rates raw (resolved):', d, 'normalized vals:', vals);
+
+                        const allZero = vals.every(v => !Number.isFinite(v) || Number(v) === 0);
+                        const canvas = document.getElementById('chart-rates');
+                        const parent = canvas && canvas.parentElement;
+
+                        if (allZero) {
+                            if (charts.rates) { charts.rates.destroy(); delete charts.rates; }
+                            // show friendly message instead of empty chart
+                            if (parent) parent.querySelector('.no-data-rates')?.remove();
+                            if (parent && !parent.querySelector('.no-data-rates')) {
+                                const msg = document.createElement('div');
+                                msg.className = 'no-data-rates small text-muted';
+                                msg.textContent = 'No hay datos suficientes para mostrar las tasas.';
+                                parent.appendChild(msg);
+                            }
+                        } else {
+                            // remove any previous no-data message
+                            if (parent) {
+                                const old = parent.querySelector('.no-data-rates');
+                                if (old) old.remove();
+                            }
+                            if (charts.rates) charts.rates.destroy();
+                            charts.rates = makePieChart(canvas.getContext('2d'), labels, vals);
+                        }
                     }
 
                     // revenue by segment -> charts for seller/channel/category

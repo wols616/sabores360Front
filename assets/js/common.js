@@ -1,6 +1,38 @@
 // Minimal SABORES360 common helpers
 window.SABORES360 = window.SABORES360 || {};
-SABORES360.API_BASE = "http://localhost:8000/api/"; // adjust if needed
+// Establece API_BASE tomando preferentemente la variable inyectada por servidor.
+// Si el servidor no la inyectó, usa el valor por defecto.
+(() => {
+  const DEFAULT_BASE = "http://localhost:8080/api/";
+  const serverProvided =
+    window.SABORES360 && window.SABORES360.API_BASE
+      ? window.SABORES360.API_BASE
+      : null;
+  const finalBase = serverProvided || DEFAULT_BASE;
+  try {
+    if (!Object.prototype.hasOwnProperty.call(SABORES360, "API_BASE")) {
+      Object.defineProperty(SABORES360, "API_BASE", {
+        value: finalBase,
+        writable: false,
+        configurable: false,
+        enumerable: true,
+      });
+    } else {
+      // If already present (injected by server), make it readonly to prevent accidental overrides
+      const cur = SABORES360.API_BASE;
+      Object.defineProperty(SABORES360, "API_BASE", {
+        value: cur,
+        writable: false,
+        configurable: false,
+        enumerable: true,
+      });
+    }
+  } catch (e) {
+    // fallback
+    SABORES360.API_BASE = finalBase;
+  }
+  console.log(`[SABORES360] API_BASE final: ${SABORES360.API_BASE}`);
+})();
 
 // API Configuration Debug Helper
 SABORES360.Debug = {
@@ -23,22 +55,9 @@ SABORES360.Debug = {
     return info;
   },
 
+  // switchAPI deshabilitado: ya no cambia la base fija.
   switchAPI: (port) => {
-    const oldBase = SABORES360.API_BASE;
-    SABORES360.API_BASE = `http://localhost:${port}/api/`;
-    console.log(
-      `🔄 API cambiada de %c${oldBase}%c a %c${SABORES360.API_BASE}`,
-      "color: red;",
-      "color: black;",
-      "color: green; font-weight: bold;"
-    );
-    // Sync selection with server-side PHP via cookie so server-side auth checks use the same API base
-    try {
-      document.cookie =
-        "SABORES_API_BASE=" +
-        encodeURIComponent(SABORES360.API_BASE) +
-        "; path=/";
-    } catch (e) {}
+    console.warn("switchAPI ignorado: API_BASE está bloqueada.");
     return SABORES360.API_BASE;
   },
 
@@ -198,17 +217,7 @@ document.addEventListener("click", function (e) {
 // Initialize API indicator when DOM is ready
 document.addEventListener("DOMContentLoaded", () => {
   SABORES360.createAPIIndicator();
-
-  // Ensure server knows which API base the client is using
-  try {
-    document.cookie =
-      "SABORES_API_BASE=" +
-      encodeURIComponent(SABORES360.API_BASE) +
-      "; path=/";
-  } catch (e) {}
-
-  // Show API info in console on page load
   setTimeout(() => {
     SABORES360.Debug.showAPIInfo();
-  }, 500);
+  }, 300);
 });
