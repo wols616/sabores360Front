@@ -334,6 +334,23 @@ require_auth();
             outline: none;
         }
 
+        .form-select {
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            min-width: 150px;
+        }
+
+        .form-select:focus {
+            border-color: var(--orange-primary);
+            box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.25);
+        }
+
+        .search-section {
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #f0f0f0;
+            margin-bottom: 1.5rem;
+        }
+
         @media (max-width: 768px) {
             .products-grid {
                 grid-template-columns: 1fr;
@@ -371,8 +388,9 @@ require_auth();
 
         <div class="products-container">
             <div class="search-section">
-                <div class="row">
-                    <div class="col-md-8">
+                <div class="row g-3 align-items-center">
+                    <!-- Buscador - Ocupa más espacio -->
+                    <div class="col-lg-5 col-md-12">
                         <div class="input-group">
                             <span class="input-group-text bg-white border-end-0">
                                 <i class="bi bi-search text-muted"></i>
@@ -381,9 +399,25 @@ require_auth();
                                 placeholder="Buscar productos...">
                         </div>
                     </div>
-                    <div class="col-md-4 text-end">
-                        <div class="d-flex justify-content-end align-items-center gap-3 mt-2 mt-md-0">
-                            <span class="text-muted">Total: <strong id="totalProducts">0</strong> productos</span>
+                    
+                    <!-- Filtros en una fila separada en móvil -->
+                    <div class="col-lg-7 col-md-12">
+                        <div class="row g-2 align-items-center justify-content-end">
+                            <div class="col-auto">
+                                <select id="categoryFilter" class="form-select">
+                                    <option value="">Todas las categorías</option>
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <select id="sortSelect" class="form-select">
+                                    <option value="">Ordenar</option>
+                                    <option value="price_desc">Precio: Mayor a menor</option>
+                                    <option value="price_asc">Precio: Menor a mayor</option>
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <span class="text-muted small">Total: <strong id="totalProducts">0</strong></span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -432,7 +466,7 @@ require_auth();
         let allProducts = [];
         let filteredProducts = [];
 
-        // Helper functions
+    // Helper functions
         function normalizeImageUrl(u) {
             if (!u) return null;
             if (u === 'undefined' || u === 'null') return null;
@@ -593,15 +627,49 @@ require_auth();
         }
 
         function filterProducts(searchTerm) {
-            if (!searchTerm.trim()) {
-                filteredProducts = [...allProducts];
+            // Read additional filters
+            const categoryEl = document.getElementById('categoryFilter');
+            const sortEl = document.getElementById('sortSelect');
+            const selectedCategory = categoryEl ? categoryEl.value : '';
+            const sortOrder = sortEl ? sortEl.value : '';
+            // helper: extract product category id or name in normalized form
+            function getProductCategoryId(p) {
+                // try several possible shapes: category may be object or primitive
+                if (!p) return '';
+                const c = p.category || p.category_id || p.categoryId || p.categoryName || p.categoria || p.category_name;
+                if (!c && p.category && typeof p.category === 'object') return String(p.category.id || p.categoryId || '');
+                if (typeof c === 'object') return String(c.id || c.categoryId || c.category_id || '');
+                return (c != null) ? String(c) : '';
+            }
+
+            let list = [];
+            if (!searchTerm || !searchTerm.trim()) {
+                list = [...allProducts];
             } else {
                 const term = searchTerm.toLowerCase();
-                filteredProducts = allProducts.filter(p =>
+                list = allProducts.filter(p =>
                     (p.name || '').toLowerCase().includes(term) ||
                     (p.description || '').toLowerCase().includes(term)
                 );
             }
+
+            // Apply category filter (client-side)
+            if (selectedCategory) {
+                list = list.filter(p => {
+                    const prodCat = getProductCategoryId(p);
+                    // compare by id (preferred) or by name if backend uses names as category value
+                    return prodCat === selectedCategory || String((p.category || p.category_name || p.categoryName || p.categoria || '')).trim() === selectedCategory;
+                });
+            }
+
+            // Apply sorting
+            if (sortOrder === 'price_desc') {
+                list.sort((a, b) => (parseFloat(b.price) || 0) - (parseFloat(a.price) || 0));
+            } else if (sortOrder === 'price_asc') {
+                list.sort((a, b) => (parseFloat(a.price) || 0) - (parseFloat(b.price) || 0));
+            }
+
+            filteredProducts = list;
             renderProducts(filteredProducts);
         }
 
@@ -634,6 +702,32 @@ require_auth();
                     allProducts = products;
                     filteredProducts = [...products];
                     renderProducts(filteredProducts);
+                    // Try to populate categories from public endpoint (preferred)
+                    try {
+                        await loadCategories();
+                    } catch (e) {
+                        // fallback: derive categories from products if endpoint fails
+                        console.debug('Could not load categories from public endpoint, falling back to product-derived categories', e);
+                        try {
+                            const catEl = document.getElementById('categoryFilter');
+                            if (catEl) {
+                                const set = new Set();
+                                products.forEach(p => {
+                                    const name = (p.category || p.category_name || p.categoryName || p.categoria || '').toString();
+                                    if (name && name.trim()) set.add(name);
+                                });
+                                // remove any non-empty existing options except the first
+                                // (we will append derived categories)
+                                const cats = Array.from(set).sort((a, b) => a.localeCompare(b, 'es'));
+                                cats.forEach(c => {
+                                    const opt = document.createElement('option');
+                                    opt.value = c;
+                                    opt.textContent = c;
+                                    catEl.appendChild(opt);
+                                });
+                            }
+                        } catch (e2) { console.debug('Error populating fallback categories', e2); }
+                    }
                 } else {
                     container.innerHTML = `
                         <div class="col-12">
@@ -672,6 +766,24 @@ require_auth();
                     filterProducts(e.target.value);
                 });
             }
+
+                // Category filter
+                const categorySelect = document.getElementById('categoryFilter');
+                if (categorySelect) {
+                    categorySelect.addEventListener('change', (e) => {
+                        const term = (document.getElementById('searchInput') || {}).value || '';
+                        filterProducts(term);
+                    });
+                }
+
+                // Sort select
+                const sortSelect = document.getElementById('sortSelect');
+                if (sortSelect) {
+                    sortSelect.addEventListener('change', (e) => {
+                        const term = (document.getElementById('searchInput') || {}).value || '';
+                        filterProducts(term);
+                    });
+                }
 
             // Product interaction event delegation
             document.addEventListener('click', async (ev) => {
@@ -729,9 +841,60 @@ require_auth();
                 }
             });
 
-            // Load products on page load
-            loadProducts();
+            // Load categories (public) first, then products
+            loadCategories().catch(() => { /* non-blocking */ }).finally(() => {
+                loadProducts();
+            });
         });
+
+        // Load categories from public endpoint (no token required)
+        async function loadCategories() {
+            try {
+                let json;
+                if (window.SABORES360 && SABORES360.API) {
+                    json = await SABORES360.API.get('public/categories');
+                } else {
+                    const base = (window.SABORES360 && SABORES360.API_BASE) ? SABORES360.API_BASE : 'http://localhost:8080/api/';
+                    const res = await fetch(base + 'public/categories');
+                    const t = await res.text();
+                    try { json = JSON.parse(t); } catch (e) { json = { success: res.ok, raw: t }; }
+                }
+
+                console.debug('public/categories response', json);
+
+                if (json && json.success && Array.isArray(json.categories)) {
+                    const catEl = document.getElementById('categoryFilter');
+                    if (!catEl) return;
+                    // Remove existing options except the first default
+                    while (catEl.options.length > 1) catEl.remove(1);
+
+                    // Append categories by id (value) and name (label)
+                    json.categories
+                        .slice()
+                        .sort((a, b) => (String(a.name || '').localeCompare(String(b.name || ''), 'es')))
+                        .forEach(c => {
+                            const opt = document.createElement('option');
+                            opt.value = String(c.id ?? c._id ?? '');
+                            opt.textContent = c.name || c.nombre || String(c.id ?? '');
+                            catEl.appendChild(opt);
+                        });
+
+                    // If there are no categories, add a disabled hint
+                    if (catEl.options.length === 1) {
+                        const opt = document.createElement('option');
+                        opt.value = '';
+                        opt.textContent = 'No hay categorías';
+                        opt.disabled = true;
+                        catEl.appendChild(opt);
+                    }
+                } else {
+                    console.warn('Categorías: respuesta inválida', json);
+                }
+            } catch (err) {
+                console.debug('Error loading public categories:', err);
+                // do not throw to avoid blocking products load
+            }
+        }
 
         // Add spinning animation for loading states
         const style = document.createElement('style');
