@@ -15,8 +15,9 @@
 <nav class="navbar navbar-expand-lg navbar-dark mb-4"
     style="background: linear-gradient(135deg, var(--orange-primary), var(--orange-secondary)); border-radius: 15px; box-shadow: 0 4px 15px rgba(255, 107, 53, 0.2);">
     <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="/Sabores360/views/admin/dashboard.php">
-            <i class="bi bi-speedometer2"></i> Admin Panel
+        <a class="navbar-brand fw-bold d-flex align-items-center" href="/Sabores360/views/admin/dashboard.php">
+            <img src="https://i.ibb.co/84R9H5nw/image-removebg-preview.png" alt="Sabores360" height="35" class="me-2">
+            <span>Admin Panel</span>
         </a>
 
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar"

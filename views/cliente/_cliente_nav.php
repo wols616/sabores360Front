@@ -5,7 +5,7 @@
 <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
     <div class="container-fluid">
         <a class="navbar-brand d-flex align-items-center" href="/Sabores360/views/cliente/dashboard.php">
-            <i class="bi bi-restaurant me-2"></i>
+            <img src="https://i.ibb.co/84R9H5nw/image-removebg-preview.png" alt="Sabores360" height="35" class="me-2">
             <span class="brand-text">Sabores360</span>
         </a>
 

@@ -6,8 +6,9 @@ $user_name = $current_user['name'] ?? $current_user['email'] ?? 'Vendedor';
 <nav class="navbar navbar-expand-lg navbar-dark shadow-lg mb-4"
     style="background: linear-gradient(135deg, #ff6b35, #ff8c42);">
     <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="/Sabores360/views/vendedor/dashboard.php">
-            <i class="bi bi-shop"></i> Sabores360 <span class="badge bg-light text-orange ms-2">Vendedor</span>
+        <a class="navbar-brand fw-bold d-flex align-items-center" href="/Sabores360/views/vendedor/dashboard.php">
+            <img src="https://i.ibb.co/84R9H5nw/image-removebg-preview.png" alt="Sabores360" height="35" class="me-2">
+            <span>Sabores360</span> <span class="badge bg-light text-orange ms-2">Vendedor</span>
         </a>
 
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#vendedorNavbar">

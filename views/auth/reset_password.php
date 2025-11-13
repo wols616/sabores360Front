@@ -90,9 +90,11 @@ require __DIR__ . '/../../includes/auth_check.php';
                 <div class="card auth-card">
                     <div class="card-body p-5">
                         <div class="text-center mb-4">
-                            <h1 class="brand-logo mb-2">
-                                <i class="bi bi-shop"></i> Sabores360
-                            </h1>
+                            <div class="mb-3">
+                                <img src="https://i.ibb.co/84R9H5nw/image-removebg-preview.png" alt="Sabores360"
+                                    height="120" class="mb-2">
+                            </div>
+                            <h1 class="brand-logo mb-2">Sabores360</h1>
                             <div class="reset-icon mb-3">
                                 <i class="bi bi-shield-lock"></i>
                             </div>

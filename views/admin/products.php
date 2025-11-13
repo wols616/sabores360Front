@@ -12,6 +12,8 @@ require_role('admin');
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/Sabores360/assets/css/styles.css">
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root {
             --orange-primary: #ff6b35;
@@ -553,7 +555,7 @@ require_role('admin');
                 try {
                     form.reset();
                     // ensure categories are loaded before setting selection
-                    if (!categories || !categories.length) {
+                    if (!allCategories || !allCategories.length) {
                         await loadCategories();
                     }
                     const el = name => form.querySelector(`[name="${name}"]`);
@@ -669,11 +671,43 @@ require_role('admin');
                     openModal(prod);
                 } else if (btn.matches('.delete')) {
                     const id = btn.getAttribute('data-id');
-                    if (!confirm('Eliminar producto #' + id + '?')) return;
+                    const confirmResult = await Swal.fire({
+                        title: '¿Estás seguro?',
+                        text: `¿Quieres eliminar el producto #${id}?`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#ff6b35',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar'
+                    });
+                    if (!confirmResult.isConfirmed) return;
                     try {
                         const res = await (window.SABORES360 && SABORES360.API ? SABORES360.API.delete(`admin/products/${id}`) : (async () => { const r = await fetch(base + `admin/products/${id}`, { method: 'DELETE', credentials: 'include' }); const t = await r.text(); try { return JSON.parse(t); } catch (e) { return { success: r.ok, raw: t } } })());
-                        if (res && res.success) await fetchProducts(); else alert(res && res.message ? res.message : 'No se pudo eliminar');
-                    } catch (e) { alert('Error al eliminar'); }
+                        if (res && res.success) {
+                            await fetchProducts();
+                            Swal.fire({
+                                title: 'Eliminado',
+                                text: 'El producto ha sido eliminado correctamente',
+                                icon: 'success',
+                                confirmButtonColor: '#ff6b35'
+                            });
+                        } else {
+                            Swal.fire({
+                                title: 'Error',
+                                text: res && res.message ? res.message : 'No se pudo eliminar el producto',
+                                icon: 'error',
+                                confirmButtonColor: '#ff6b35'
+                            });
+                        }
+                    } catch (e) {
+                        Swal.fire({
+                            title: 'Error',
+                            text: 'Error al eliminar el producto',
+                            icon: 'error',
+                            confirmButtonColor: '#ff6b35'
+                        });
+                    }
                 }
             });
 

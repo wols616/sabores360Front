@@ -77,9 +77,10 @@
                 <div class="card auth-card">
                     <div class="card-body p-5">
                         <div class="text-center mb-4">
-                            <h1 class="brand-logo mb-2">
-                                <i class="bi bi-shop"></i> Sabores360
-                            </h1>
+                            <div class="mb-3">
+                                <img src="https://i.ibb.co/nMX5PL04/Logo360.png" alt="Sabores360" height="300"
+                                    class="mb-2">
+                            </div>
                             <h4 class="text-orange">Iniciar Sesión</h4>
                             <p class="text-muted">Bienvenido de vuelta</p>
                         </div>
