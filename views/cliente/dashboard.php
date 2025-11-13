@@ -399,7 +399,7 @@ require_auth();
                                 placeholder="Buscar productos...">
                         </div>
                     </div>
-                    
+
                     <!-- Filtros en una fila separada en móvil -->
                     <div class="col-lg-7 col-md-12">
                         <div class="row g-2 align-items-center justify-content-end">
@@ -466,7 +466,7 @@ require_auth();
         let allProducts = [];
         let filteredProducts = [];
 
-    // Helper functions
+        // Helper functions
         function normalizeImageUrl(u) {
             if (!u) return null;
             if (u === 'undefined' || u === 'null') return null;
@@ -767,23 +767,23 @@ require_auth();
                 });
             }
 
-                // Category filter
-                const categorySelect = document.getElementById('categoryFilter');
-                if (categorySelect) {
-                    categorySelect.addEventListener('change', (e) => {
-                        const term = (document.getElementById('searchInput') || {}).value || '';
-                        filterProducts(term);
-                    });
-                }
+            // Category filter
+            const categorySelect = document.getElementById('categoryFilter');
+            if (categorySelect) {
+                categorySelect.addEventListener('change', (e) => {
+                    const term = (document.getElementById('searchInput') || {}).value || '';
+                    filterProducts(term);
+                });
+            }
 
-                // Sort select
-                const sortSelect = document.getElementById('sortSelect');
-                if (sortSelect) {
-                    sortSelect.addEventListener('change', (e) => {
-                        const term = (document.getElementById('searchInput') || {}).value || '';
-                        filterProducts(term);
-                    });
-                }
+            // Sort select
+            const sortSelect = document.getElementById('sortSelect');
+            if (sortSelect) {
+                sortSelect.addEventListener('change', (e) => {
+                    const term = (document.getElementById('searchInput') || {}).value || '';
+                    filterProducts(term);
+                });
+            }
 
             // Product interaction event delegation
             document.addEventListener('click', async (ev) => {
